@@ -132,3 +132,21 @@ Requires `ANTHROPIC_API_KEY` secret.
 - **Optional bearer auth** on `/api/status`, `/api/agents`, `/api/agents/*`: set env `STATUS_API_TOKEN` on Railway. When unset, endpoints stay open.
 - **CORS**: env `CORS_ALLOWED_ORIGINS` (comma-separated). Empty (default) = same-origin only.
 - **/api/status response cached 60 s** in-process — reduces GH API hits if endpoint gets hammered.
+
+## Backend selection: Anthropic vs GitHub Models
+
+By default agents use `claude-agent-sdk` (requires `ANTHROPIC_API_KEY`). To switch to GitHub Models free tier:
+
+```bash
+export HARNESS_BACKEND=github_models
+# uses GITHUB_TOKEN by default; or set a dedicated token:
+export GITHUB_MODELS_TOKEN=<your token with models:read scope>
+# default model is openai/gpt-4o-mini; override:
+export GITHUB_MODELS_MODEL=openai/gpt-5
+```
+
+Set the same env on Railway / GH Actions secrets to use GH Models in production.
+
+**Limitation:** GH Models backend does NOT support tools (Read/Write/Edit/Glob/Grep). The planner agent (which writes code) will raise NotImplementedError under this backend. All other agents (reviewer, triager, healthcheck, release-notes, pr-describer, issue-labeler) work fine — they're text-in, text-out.
+
+GH Models free-tier rate limits: ~50 premium-model requests/day; faster for non-premium. Sufficient for a solo lab.
