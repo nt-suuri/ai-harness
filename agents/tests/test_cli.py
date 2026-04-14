@@ -150,3 +150,27 @@ def test_next_tag_prints_tag_format() -> None:
     import re
 
     assert re.search(r"v\d{4}\.\d{2}\.\d{2}-\d{4}", result.output)
+
+
+def test_self_test_command_runs() -> None:
+    runner = CliRunner()
+    fake_result = MagicMock(returncode=0, stdout="usage:", stderr="")
+    with (
+        patch("agents.cli.subprocess.run", return_value=fake_result),
+        patch("agents.canary.run_canary", return_value=0),
+    ):
+        result = runner.invoke(cli, ["self-test"])
+    assert result.exit_code == 0
+    assert "All self-tests green" in result.output
+
+
+def test_self_test_command_reports_failure_on_canary_fail() -> None:
+    runner = CliRunner()
+    fake_result = MagicMock(returncode=0, stdout="usage:", stderr="")
+    with (
+        patch("agents.cli.subprocess.run", return_value=fake_result),
+        patch("agents.canary.run_canary", return_value=1),
+    ):
+        result = runner.invoke(cli, ["self-test"])
+    assert result.exit_code == 1
+    assert "failed" in result.output

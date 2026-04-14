@@ -237,5 +237,40 @@ def next_tag() -> None:
     click.echo(_next_tag())
 
 
+@cli.command(name="self-test")
+def self_test() -> None:
+    """Smoke-test every agent's CLI + run the canary fixture replay."""
+    agents = ["reviewer", "planner", "deployer", "triager", "healthcheck", "stale", "release_notes", "canary"]
+
+    rows: list[tuple[str, bool, str]] = []
+
+    for name in agents:
+        result = subprocess.run(
+            ["uv", "run", "python", "-m", f"agents.{name}", "--help"],
+            capture_output=True,
+            text=True,
+        )
+        ok = result.returncode == 0
+        detail = "CLI loaded" if ok else f"exit={result.returncode}"
+        rows.append((f"agents.{name} CLI", ok, detail))
+
+    from agents.canary import run_canary
+
+    canary_ok = run_canary(dry_run=False) == 0
+    rows.append(("canary fixture replay", canary_ok, "all green" if canary_ok else "structural assertion failed"))
+
+    failed = 0
+    for label, ok, detail in rows:
+        mark = click.style("✓", fg="green") if ok else click.style("✗", fg="red")
+        click.echo(f"  {mark}  {label:<30} {detail}")
+        if not ok:
+            failed += 1
+
+    if failed:
+        click.echo(f"\n{failed} self-test(s) failed", err=True)
+        sys.exit(1)
+    click.echo("\nAll self-tests green.")
+
+
 if __name__ == "__main__":
     cli()
