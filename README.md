@@ -2,6 +2,16 @@
 
 [![ci](https://github.com/nt-suuri/ai-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/ci.yml)
 [![deploy](https://github.com/nt-suuri/ai-harness/actions/workflows/deploy.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/deploy.yml)
+[![reviewer](https://github.com/nt-suuri/ai-harness/actions/workflows/reviewer.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/reviewer.yml)
+[![planner](https://github.com/nt-suuri/ai-harness/actions/workflows/planner.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/planner.yml)
+[![rollback-watch](https://github.com/nt-suuri/ai-harness/actions/workflows/rollback-watch.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/rollback-watch.yml)
+[![triager](https://github.com/nt-suuri/ai-harness/actions/workflows/triager.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/triager.yml)
+[![healthcheck](https://github.com/nt-suuri/ai-harness/actions/workflows/healthcheck.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/healthcheck.yml)
+[![release-notes](https://github.com/nt-suuri/ai-harness/actions/workflows/release-notes.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/release-notes.yml)
+[![canary-replay](https://github.com/nt-suuri/ai-harness/actions/workflows/canary-replay.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/canary-replay.yml)
+[![stale](https://github.com/nt-suuri/ai-harness/actions/workflows/stale.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/stale.yml)
+[![pr-describer](https://github.com/nt-suuri/ai-harness/actions/workflows/pr-describer.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/pr-describer.yml)
+[![issue-labeler](https://github.com/nt-suuri/ai-harness/actions/workflows/issue-labeler.yml/badge.svg)](https://github.com/nt-suuri/ai-harness/actions/workflows/issue-labeler.yml)
 
 Solo 24/7 AI development harness — implements the loop **plan → build → review → deploy → monitor → triage → fix → release** with AI doing 99% of the code and the human gating risk. Inspired by Peter Pang's CREAO writeup (April 2026).
 

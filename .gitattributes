@@ -1,0 +1,22 @@
+# Ensure consistent line endings across platforms.
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Lockfiles — keep generated, don't smudge in diffs by default
+uv.lock linguist-generated=true
+pnpm-lock.yaml linguist-generated=true
+package-lock.json linguist-generated=true
+
+# Vendored / generated
+apps/web/dist/** linguist-generated=true
+
+# Don't trigger language detection on plan files
+docs/superpowers/plans/** linguist-documentation=true
