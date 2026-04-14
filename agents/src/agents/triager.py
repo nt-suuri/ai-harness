@@ -6,12 +6,13 @@ Usage:
 """
 
 import argparse
+import asyncio
 import os
 import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from agents.lib import gh, kill_switch, sentry
+from agents.lib import gh, kill_switch, prompts, sentry
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -45,6 +46,62 @@ def _format_issue_body(s_issue: dict[str, Any], marker: str) -> str:
     )
 
 
+def _severity_label(score: int) -> str:
+    if score >= 8:
+        return "severity:critical"
+    if score >= 4:
+        return "severity:important"
+    return "severity:minor"
+
+
+def _parse_severity(text: str) -> int:
+    """Parse `SEVERITY: <int>` from the LAST matching line. Returns 5 on parse failure (medium)."""
+    import re
+
+    matches = re.findall(r"SEVERITY:\s*(\d+)", text)
+    if not matches:
+        return 5
+    try:
+        score = int(matches[-1])
+    except ValueError:
+        return 5
+    return max(1, min(10, score))
+
+
+async def _score_severity_async(s_issue: dict[str, Any]) -> int:
+    import json
+
+    from agents.lib.anthropic import run_agent
+
+    system = prompts.load("triager_severity")
+    user = "Score the severity of this Sentry issue:\n\n" + json.dumps(
+        {
+            "title": s_issue.get("title", ""),
+            "culprit": s_issue.get("culprit", ""),
+            "count": s_issue.get("count", "?"),
+            "level": s_issue.get("level", "?"),
+        },
+        indent=2,
+    )
+    result = await run_agent(prompt=user, system=system, max_turns=5, allowed_tools=[])
+    text = ""
+    for m in result.messages:
+        if isinstance(m, dict) and m.get("type") == "text" and "text" in m:
+            text += str(m["text"]) + "\n"
+        elif hasattr(m, "text"):
+            text += str(m.text) + "\n"
+    return _parse_severity(text)
+
+
+def _score_severity(s_issue: dict[str, Any]) -> int:
+    """Sync wrapper. Returns 5 (medium) on any error so we never block triage."""
+    try:
+        return asyncio.run(_score_severity_async(s_issue))
+    except Exception as e:
+        print(f"warning: severity scoring failed for {s_issue.get('id')}: {e}", flush=True)
+        return 5
+
+
 def triage_run(since_hours: int, *, dry_run: bool) -> int:
     """Return 0 always. Logs counts."""
     org = os.environ.get("SENTRY_ORG_SLUG", "")
@@ -73,11 +130,14 @@ def triage_run(since_hours: int, *, dry_run: bool) -> int:
         title = f"[autotriage] {s_issue.get('title', 'Unknown error')}"
         body = _format_issue_body(s_issue, marker)
         if dry_run:
-            print(f"DRY RUN — would create: {title}")
+            score = _score_severity(s_issue)
+            print(f"DRY RUN — would create: {title} (severity:{score})")
             new_count += 1
             continue
 
-        gh_issue = repo.create_issue(title=title, body=body, labels=["bug", "autotriage"])
+        score = _score_severity(s_issue)
+        sev_label = _severity_label(score)
+        gh_issue = repo.create_issue(title=title, body=body, labels=["bug", "autotriage", sev_label])
         print(f"Created issue #{gh_issue.number}: {title}", flush=True)
         new_count += 1
 
