@@ -28,5 +28,7 @@ jobs:
             exit 0
           fi
       - uses: actions/checkout@v4
+      - name: Debug Railway token
+        run: railway status
       - name: Deploy
         run: railway up --service ${{ vars.RAILWAY_SERVICE || 'ai-harness' }} --detach
