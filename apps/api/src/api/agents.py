@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from github import Github
 from github.Repository import Repository
+from github.WorkflowRun import WorkflowRun
 
 router = APIRouter()
 
@@ -64,3 +65,34 @@ def get_agent_detail(name: str) -> dict[str, Any]:
         last_run_value = {"error": str(e)}
     result["last_run"] = last_run_value
     return result
+
+
+@router.get("/api/agents/{name}/runs")
+def get_agent_runs(name: str, limit: int = 10) -> dict[str, Any]:
+    agent = next((a for a in _AGENTS if a["name"] == name), None)
+    if agent is None:
+        raise HTTPException(status_code=404, detail=f"Unknown agent: {name}")
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=400, detail="limit must be 1..50")
+
+    try:
+        repo = _repo()
+    except KeyError as e:
+        raise HTTPException(status_code=503, detail=f"Missing env var: {e.args[0]}") from None
+
+    runs_raw: list[WorkflowRun] = list(repo.get_workflow(str(agent["workflow_file"])).get_runs()[:limit])
+    runs = [
+        {
+            "conclusion": r.conclusion,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "head_sha": r.head_sha[:7] if r.head_sha else None,
+            "html_url": r.html_url,
+        }
+        for r in runs_raw
+    ]
+
+    return {
+        "name": name,
+        "workflow_file": agent["workflow_file"],
+        "runs": runs,
+    }
