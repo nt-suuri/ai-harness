@@ -124,3 +124,11 @@ The server runs over stdio — no port to expose, no auth needed.
 `pr-describer.yml` runs when a PR is opened (event `pull_request.opened`). If the description is empty or under 60 characters, an agent reads the diff and asks Claude Sonnet 4.6 to write a structured description. Otherwise it's a no-op.
 
 Requires `ANTHROPIC_API_KEY` secret.
+
+## Security hardening (Phase 37)
+
+- **Rate limit**: 60/min per IP on /api/*; 120/min on /api/ping (healthcheck). Returns 429 when exceeded.
+- **Security headers**: every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security`, `Permissions-Policy: interest-cohort=()`.
+- **Optional bearer auth** on `/api/status`, `/api/agents`, `/api/agents/*`: set env `STATUS_API_TOKEN` on Railway. When unset, endpoints stay open.
+- **CORS**: env `CORS_ALLOWED_ORIGINS` (comma-separated). Empty (default) = same-origin only.
+- **/api/status response cached 60 s** in-process — reduces GH API hits if endpoint gets hammered.

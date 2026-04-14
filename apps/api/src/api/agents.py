@@ -1,15 +1,14 @@
-"""GET /api/agents and /api/agents/{name} — introspect available agent CLIs."""
-
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from github import Github
 from github.Repository import Repository
 from github.WorkflowRun import WorkflowRun
 
-router = APIRouter()
+from api.security import limiter, require_token
 
+router = APIRouter()
 
 _AGENTS = [
     {"name": "reviewer", "purpose": "3-pass PR reviewer", "trigger": "pull_request", "module": "agents.reviewer", "workflow_file": "reviewer.yml"},
@@ -45,12 +44,14 @@ def _last_run(repo: Repository, workflow_file: str) -> dict[str, Any] | None:
 
 
 @router.get("/api/agents")
-def get_agents() -> dict[str, object]:
+@limiter.limit("60/minute")
+def get_agents(request: Request, _: None = Depends(require_token)) -> dict[str, object]:
     return {"count": len(_AGENTS), "agents": _AGENTS}
 
 
 @router.get("/api/agents/{name}")
-def get_agent_detail(name: str) -> dict[str, Any]:
+@limiter.limit("60/minute")
+def get_agent_detail(name: str, request: Request, _: None = Depends(require_token)) -> dict[str, Any]:
     agent = next((a for a in _AGENTS if a["name"] == name), None)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {name}")
@@ -68,7 +69,8 @@ def get_agent_detail(name: str) -> dict[str, Any]:
 
 
 @router.get("/api/agents/{name}/runs")
-def get_agent_runs(name: str, limit: int = 10) -> dict[str, Any]:
+@limiter.limit("60/minute")
+def get_agent_runs(name: str, request: Request, _: None = Depends(require_token), limit: int = 10) -> dict[str, Any]:
     agent = next((a for a in _AGENTS if a["name"] == name), None)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {name}")

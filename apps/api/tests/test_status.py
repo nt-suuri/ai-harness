@@ -1,8 +1,17 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.status import _cache
+
+
+@pytest.fixture(autouse=True)
+def clear_status_cache():
+    _cache._store.clear()
+    yield
+    _cache._store.clear()
 
 
 def test_status_returns_shape() -> None:

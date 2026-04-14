@@ -7,6 +7,7 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "sentry-sdk[fastapi]>=2.18",
     "PyGithub>=2.4",
+    "slowapi>=0.1.9",
 ]
 
 [build-system]
