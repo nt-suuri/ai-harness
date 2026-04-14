@@ -27,6 +27,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm i -g @railway/cli@latest
+      - name: Test token via HTTP
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Token length: ${#RAILWAY_TOKEN}"
+          echo "Token first 4 chars: ${RAILWAY_TOKEN:0:4}"
+          wget -q -O - \
+            --header="Content-Type: application/json" \
+            --header="project-access-token: $RAILWAY_TOKEN" \
+            --post-data='{"query":"query { projectToken { id project { id name } environment { id name } } }"}' \
+            https://backboard.railway.com/graphql/v2 || echo "wget exit: $?"
       - name: Deploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
