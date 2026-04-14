@@ -1,0 +1,10 @@
+# Durable agent knowledge: triager-confirmed false-positive error fingerprints.
+#
+# Entries are added by humans OR by the triager agent via PR.
+# Each entry:
+#   - fingerprint:  Sentry issue fingerprint or a regex pattern matching it
+#   - reason:       one-line human explanation for later auditors
+#   - added:        YYYY-MM-DD
+#   - added_by:     "human" or "triager-<run-id>"
+
+false_positives: []
