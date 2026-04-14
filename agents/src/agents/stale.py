@@ -9,7 +9,7 @@ import argparse
 import sys
 from datetime import UTC, datetime, timedelta
 
-from agents.lib import gh, kill_switch
+from agents.lib import gh, kill_switch, labels
 
 _CLOSE_COMMENT = (
     "Closing as stale (no activity for {days}+ days). The triager will reopen "
@@ -35,7 +35,7 @@ def _is_stale(updated_at: datetime, *, threshold_days: int) -> bool:
 def run_stale_close(stale_days: int, *, dry_run: bool) -> int:
     """Return 0 always."""
     repo = gh.repo()
-    issues = list(repo.get_issues(state="open", labels=["autotriage"]))
+    issues = list(repo.get_issues(state="open", labels=[labels.AUTOTRIAGE]))
 
     closed = 0
     skipped = 0

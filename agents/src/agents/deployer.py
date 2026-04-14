@@ -11,7 +11,7 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta
 
-from agents.lib import gh, kill_switch, sentry
+from agents.lib import gh, kill_switch, labels, sentry
 
 _SPIKE_RATIO = 3.0
 _SPIKE_ABSOLUTE_FLOOR = 5
@@ -88,7 +88,7 @@ def watch_post_deploy(sha: str, window_minutes: int, *, dry_run: bool) -> int:
         return 1
 
     repo = gh.repo()
-    issue = repo.create_issue(title=title, body=body, labels=["regression", "autotriage"])
+    issue = repo.create_issue(title=title, body=body, labels=[labels.REGRESSION, labels.AUTOTRIAGE])
     print(f"Opened regression issue #{issue.number}: {issue.html_url}", flush=True)
     return 1
 

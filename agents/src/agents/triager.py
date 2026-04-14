@@ -12,7 +12,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from agents.lib import gh, kill_switch, prompts, sentry
+from agents.lib import gh, kill_switch, labels, prompts, sentry
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -48,10 +48,10 @@ def _format_issue_body(s_issue: dict[str, Any], marker: str) -> str:
 
 def _severity_label(score: int) -> str:
     if score >= 8:
-        return "severity:critical"
+        return labels.SEVERITY_CRITICAL
     if score >= 4:
-        return "severity:important"
-    return "severity:minor"
+        return labels.SEVERITY_IMPORTANT
+    return labels.SEVERITY_MINOR
 
 
 def _parse_severity(text: str) -> int:
@@ -114,7 +114,7 @@ def triage_run(since_hours: int, *, dry_run: bool) -> int:
     sentry_issues = sentry.list_issues(org, proj, since=since)
 
     repo = gh.repo()
-    existing = list(repo.get_issues(state="all", labels=["autotriage"]))
+    existing = list(repo.get_issues(state="all", labels=[labels.AUTOTRIAGE]))
 
     new_count = 0
     deduped = 0
@@ -137,7 +137,7 @@ def triage_run(since_hours: int, *, dry_run: bool) -> int:
 
         score = _score_severity(s_issue)
         sev_label = _severity_label(score)
-        gh_issue = repo.create_issue(title=title, body=body, labels=["bug", "autotriage", sev_label])
+        gh_issue = repo.create_issue(title=title, body=body, labels=[labels.BUG, labels.AUTOTRIAGE, sev_label])
         print(f"Created issue #{gh_issue.number}: {title}", flush=True)
         new_count += 1
 

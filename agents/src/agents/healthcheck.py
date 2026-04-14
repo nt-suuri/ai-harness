@@ -13,7 +13,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from agents.lib import email, gh, kill_switch, prompts, sentry
+from agents.lib import email, gh, kill_switch, labels, prompts, sentry
 
 _HEALTH_ISSUE_TITLE = "HEALTH dashboard"
 
@@ -124,7 +124,7 @@ def run_healthcheck(*, dry_run: bool) -> int:
         print(summary)
         return 0
 
-    existing = list(repo.get_issues(state="open", labels=["healthcheck"]))
+    existing = list(repo.get_issues(state="open", labels=[labels.HEALTHCHECK]))
     if existing:
         issue = existing[0]
         new_body = f"{issue.body or ''}\n\n{summary}"
@@ -134,7 +134,7 @@ def run_healthcheck(*, dry_run: bool) -> int:
         issue = repo.create_issue(
             title=_HEALTH_ISSUE_TITLE,
             body=summary,
-            labels=["healthcheck"],
+            labels=[labels.HEALTHCHECK],
         )
         print(f"Created HEALTH issue #{issue.number}")
 

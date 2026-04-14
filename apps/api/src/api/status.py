@@ -37,6 +37,8 @@ def get_status() -> dict[str, Any]:
 
     ci = _count_runs(repo, "ci.yml")
     deploy = _count_runs(repo, "deploy.yml")
+    # NOTE: keep "autotriage" inline rather than importing from agents.lib —
+    # we don't want apps/api to depend on agents/.
     autotriage_issues = list(repo.get_issues(state="open", labels=["autotriage"]))
 
     return {
