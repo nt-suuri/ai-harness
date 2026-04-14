@@ -75,3 +75,11 @@ To enable, populate:
 Without these, the triager exits 0 silently.
 
 To trigger the loop manually: open the auto-created issue → add `agent:build` label → planner takes over.
+
+## Healthcheck (daily)
+
+`healthcheck.yml` runs at 08:00 UTC. Updates a pinned `HEALTH dashboard` issue (label: `healthcheck`) with yesterday's CI/deploy/Sentry counts. If `RESEND_API_KEY` secret + `HEALTHCHECK_TO_EMAIL` repo variable are set, also emails the same content.
+
+## Canary replay (weekly)
+
+`canary-replay.yml` runs Sundays at 07:00 UTC. Replays sanitized fixtures from `agents/tests/fixtures/` through `triager` parsers. Catches regressions in agent code. Fails if structural assertions break.
