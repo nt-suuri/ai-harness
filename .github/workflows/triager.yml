@@ -1,0 +1,37 @@
+name: triager
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+      SENTRY_PROJECT_SLUG: ${{ vars.SENTRY_PROJECT_SLUG }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check kill-switch
+        env:
+          PAUSE: ${{ vars.PAUSE_AGENTS }}
+        run: |
+          if [ "${PAUSE}" = "true" ]; then
+            echo "PAUSE_AGENTS=true — skipping triager"
+            exit 0
+          fi
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev --all-packages --frozen
+      - name: Triage
+        run: uv run python -m agents.triager --since-hours 24
