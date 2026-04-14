@@ -28,13 +28,5 @@ jobs:
             exit 0
           fi
       - uses: actions/checkout@v4
-      - name: Debug connectivity
-        run: |
-          echo "Testing Railway API connectivity..."
-          curl -sS -m 10 -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Content-Type: application/json" \
-            -H "project-access-token: $RAILWAY_TOKEN" \
-            -d '{"query":"query ProjectToken { projectToken { id project { id name } environment { id name } } }"}' 2>&1 | head -100
-          echo "Exit code: $?"
       - name: Deploy
         run: railway up --service ${{ vars.RAILWAY_SERVICE || 'ai-harness' }} --detach
