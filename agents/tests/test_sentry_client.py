@@ -72,3 +72,33 @@ def test_list_events_raises_for_status() -> None:
 
     with patch("agents.lib.sentry._client", return_value=fake_client), pytest.raises(Exception, match="401"):
         sentry.list_events("o", "p")
+
+
+def test_count_events_since_returns_int() -> None:
+    fake_client = MagicMock()
+    fake_client.__enter__.return_value = fake_client
+    fake_client.__exit__.return_value = None
+    fake_client.get.return_value = MagicMock(
+        status_code=200,
+        json=MagicMock(return_value=[{"id": "e1"}, {"id": "e2"}, {"id": "e3"}]),
+    )
+
+    pinned = datetime(2026, 4, 14, 10, 0, 0, tzinfo=UTC)
+    with patch("agents.lib.sentry._client", return_value=fake_client):
+        n = sentry.count_events_since("myorg", "myproj", since=pinned)
+
+    assert n == 3
+    fake_client.get.assert_called_once()
+    assert fake_client.get.call_args.kwargs["params"]["since"] == pinned.isoformat()
+
+
+def test_count_events_since_returns_zero_on_empty() -> None:
+    fake_client = MagicMock()
+    fake_client.__enter__.return_value = fake_client
+    fake_client.__exit__.return_value = None
+    fake_client.get.return_value = MagicMock(status_code=200, json=MagicMock(return_value=[]))
+
+    with patch("agents.lib.sentry._client", return_value=fake_client):
+        n = sentry.count_events_since("o", "p", since=datetime.now(UTC))
+
+    assert n == 0

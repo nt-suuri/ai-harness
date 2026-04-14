@@ -32,3 +32,11 @@ def list_events(
         )
         resp.raise_for_status()
         return cast(list[dict[str, Any]], resp.json())
+
+
+def count_events_since(
+    organization_slug: str,
+    project_slug: str,
+    since: datetime,
+) -> int:
+    return len(list_events(organization_slug, project_slug, since=since))
