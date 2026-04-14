@@ -25,11 +25,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _fetch_diff(pr: Any) -> str:
+    """Concatenate per-file patches from PyGithub's get_files()."""
+    pieces: list[str] = []
+    for f in pr.get_files():
+        patch = getattr(f, "patch", None)
+        if patch:
+            pieces.append(f"--- {f.filename} ---\n{patch}")
+    return "\n\n".join(pieces)
+
+
 async def review_pr(pass_name: str, pr_number: int, *, dry_run: bool) -> int:
     """Return 0 if APPROVED, 1 if REJECTED."""
     repo = gh.repo()
     pr = repo.get_pull(pr_number)
-    diff = getattr(pr, "patch", None) or ""
+    diff = _fetch_diff(pr)
     system = prompts.load(f"reviewer_{pass_name}")
     user = (
         f"Review PR #{pr_number} titled: {pr.title}\n\n"

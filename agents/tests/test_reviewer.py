@@ -58,7 +58,10 @@ async def test_review_pr_dry_run_returns_rc_from_verdict() -> None:
     fake_repo = MagicMock()
     fake_pr = MagicMock()
     fake_pr.title = "Test PR"
-    fake_pr.patch = "diff --git a/x b/x\n+hello"
+    fake_file = MagicMock()
+    fake_file.filename = "x.py"
+    fake_file.patch = "@@ -0,0 +1 @@\n+hello"
+    fake_pr.get_files.return_value = [fake_file]
     fake_repo.get_pull.return_value = fake_pr
 
     with (
@@ -84,7 +87,10 @@ async def test_review_pr_live_posts_comment_and_sets_status() -> None:
     fake_repo = MagicMock()
     fake_pr = MagicMock()
     fake_pr.title = "Test PR"
-    fake_pr.patch = "diff"
+    fake_file = MagicMock()
+    fake_file.filename = "y.py"
+    fake_file.patch = "@@ -1 +1 @@\n-old\n+new"
+    fake_pr.get_files.return_value = [fake_file]
     fake_pr.head.sha = "abc123"
     fake_repo.get_pull.return_value = fake_pr
 
@@ -107,3 +113,46 @@ async def test_review_pr_live_posts_comment_and_sets_status() -> None:
     status_call = fake_repo.get_commit.return_value.create_status.call_args
     assert status_call.kwargs["state"] == "failure"
     assert status_call.kwargs["context"] == "reviewer / security"
+
+
+def test_fetch_diff_concatenates_per_file_patches() -> None:
+    from agents.reviewer import _fetch_diff
+
+    file_a = MagicMock()
+    file_a.filename = "apps/api/main.py"
+    file_a.patch = "@@ -1 +1 @@\n-foo\n+bar"
+
+    file_b = MagicMock()
+    file_b.filename = "apps/web/App.tsx"
+    file_b.patch = "@@ -10 +10 @@\n-old\n+new"
+
+    pr = MagicMock()
+    pr.get_files.return_value = [file_a, file_b]
+
+    diff = _fetch_diff(pr)
+    assert "apps/api/main.py" in diff
+    assert "apps/web/App.tsx" in diff
+    assert "-foo" in diff
+    assert "+bar" in diff
+    assert "-old" in diff
+    assert "+new" in diff
+
+
+def test_fetch_diff_skips_files_without_patch() -> None:
+    from agents.reviewer import _fetch_diff
+
+    binary = MagicMock()
+    binary.filename = "logo.png"
+    binary.patch = None
+
+    text = MagicMock()
+    text.filename = "x.py"
+    text.patch = "@@ -1 +1 @@\n+hi"
+
+    pr = MagicMock()
+    pr.get_files.return_value = [binary, text]
+
+    diff = _fetch_diff(pr)
+    assert "logo.png" not in diff
+    assert "x.py" in diff
+    assert "+hi" in diff
