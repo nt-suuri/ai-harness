@@ -83,3 +83,14 @@ To trigger the loop manually: open the auto-created issue → add `agent:build` 
 ## Canary replay (weekly)
 
 `canary-replay.yml` runs Sundays at 07:00 UTC. Replays sanitized fixtures from `agents/tests/fixtures/` through `triager` parsers. Catches regressions in agent code. Fails if structural assertions break.
+
+## Release notes (per deploy)
+
+`release-notes.yml` runs after every successful deploy to main. It:
+
+1. Lists commits since the last release tag
+2. Asks Claude Sonnet 4.6 to write structured release notes
+3. Prepends them to `RELEASES.md`, commits the file
+4. Creates a tagged GitHub Release (`v{YYYY.MM.DD}-{HHMM}`)
+
+Requires `ANTHROPIC_API_KEY` secret. Without it, the workflow fails at `run_agent`; the previous deploy is not affected.
