@@ -94,3 +94,7 @@ To trigger the loop manually: open the auto-created issue → add `agent:build` 
 4. Creates a tagged GitHub Release (`v{YYYY.MM.DD}-{HHMM}`)
 
 Requires `ANTHROPIC_API_KEY` secret. Without it, the workflow fails at `run_agent`; the previous deploy is not affected.
+
+## Stale issue closer (weekly)
+
+`stale.yml` runs Sundays at 10:00 UTC. Closes any open issue with label `autotriage` whose `updated_at` is more than 14 days ago. Adds a comment explaining the close. The triager will reopen automatically if the underlying error recurs (Sentry id-based dedup).
