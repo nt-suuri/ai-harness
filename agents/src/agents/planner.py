@@ -7,9 +7,17 @@ Usage:
 
 import argparse
 import asyncio
+import re
+import subprocess
 import sys
+from typing import Any
 
-from agents.lib import kill_switch
+from agents.lib import gh, kill_switch, prompts
+from agents.lib.anthropic import run_agent
+
+_MAX_TURNS = 80
+_ALLOWED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep"]
+_SLUG_MAX = 40
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -20,9 +28,85 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _branch_name(issue_number: int, title: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    slug = slug[:_SLUG_MAX].rstrip("-")
+    return f"feat/{issue_number}-{slug}"
+
+
+def _run_git(*args: str) -> str:
+    result = subprocess.run(["git", *args], capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+
+
+def _has_changes() -> bool:
+    result = subprocess.run(
+        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+    )
+    return bool(result.stdout.strip())
+
+
+def _extract_text(messages: list[Any]) -> str:
+    parts: list[str] = []
+    for m in messages:
+        if isinstance(m, dict) and m.get("type") == "text" and "text" in m:
+            parts.append(str(m["text"]))
+        elif hasattr(m, "text"):
+            parts.append(str(m.text))
+    return "\n".join(parts).strip()
+
+
 async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
-    """Return 0 on success, 1 on agent failure, 2 on internal error."""
-    raise NotImplementedError("Task 2 fills this in")
+    """Return 0 on success, 1 if no changes produced, 2 on internal error."""
+    repo = gh.repo()
+    issue = repo.get_issue(issue_number)
+
+    system = prompts.load("planner")
+    user = (
+        f"GitHub issue #{issue_number}: {issue.title}\n\n"
+        f"Description:\n{issue.body or '(no description)'}\n\n"
+        "Implement this. Write code + tests. Keep changes focused to what the issue asks for.\n"
+        "When done, provide a brief 1-paragraph plan summary in your last message — it will be the PR description."
+    )
+    result = await run_agent(
+        prompt=user,
+        system=system,
+        max_turns=_MAX_TURNS,
+        allowed_tools=_ALLOWED_TOOLS,
+    )
+    plan_summary = _extract_text(result.messages)
+
+    if dry_run:
+        print(f"--- DRY RUN [issue #{issue_number}] ---")
+        print(plan_summary)
+        return 0
+
+    if not _has_changes():
+        issue.create_comment(f"**Planner ran but made no changes.**\n\n{plan_summary}")
+        return 1
+
+    branch = _branch_name(issue_number, issue.title)
+    _run_git("checkout", "-b", branch)
+    _run_git("add", "-A")
+    _run_git(
+        "-c", "user.name=ai-harness-bot",
+        "-c", "user.email=ai-harness@local",
+        "commit",
+        "-m", f"feat: {issue.title}\n\nCloses #{issue_number}",
+    )
+    _run_git("push", "-u", "origin", branch)
+
+    pr = repo.create_pull(
+        base="main",
+        head=branch,
+        title=f"feat: {issue.title}",
+        body=(
+            f"Closes #{issue_number}\n\n"
+            f"**Plan summary (by planner agent):**\n\n{plan_summary}"
+        ),
+    )
+    print(f"Opened PR #{pr.number}: {pr.html_url}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
