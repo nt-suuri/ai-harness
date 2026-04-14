@@ -92,6 +92,7 @@ version = "0.0.0"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "fastapi" },
+    { name = "pygithub" },
     { name = "sentry-sdk", extra = ["fastapi"] },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -99,6 +100,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "pygithub", specifier = ">=2.4" },
     { name = "sentry-sdk", extras = ["fastapi"], specifier = ">=2.18" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]

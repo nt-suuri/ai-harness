@@ -6,6 +6,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "sentry-sdk[fastapi]>=2.18",
+    "PyGithub>=2.4",
 ]
 
 [build-system]
