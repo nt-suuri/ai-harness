@@ -272,5 +272,102 @@ def self_test() -> None:
     click.echo("\nAll self-tests green.")
 
 
+@cli.command()
+@click.option("--url", default="https://ai-harness-production.up.railway.app", help="Deployed app base URL")
+def verify(url: str) -> None:
+    """Live integration check — hits deployed app + GH API + reports."""
+    import urllib.error
+    import urllib.request
+    from datetime import datetime, timedelta, timezone
+
+    rows: list[tuple[str, bool, str]] = []
+
+    # 1. /api/ping
+    try:
+        with urllib.request.urlopen(f"{url}/api/ping", timeout=15) as resp:
+            ok = resp.status == 200 and json.loads(resp.read())["status"] == "pong"
+            rows.append(("Deployed /api/ping", ok, f"HTTP {resp.status}"))
+    except Exception as e:
+        rows.append(("Deployed /api/ping", False, str(e)))
+
+    # 2. /api/version
+    try:
+        with urllib.request.urlopen(f"{url}/api/version", timeout=15) as resp:
+            data = json.loads(resp.read())
+            rows.append(("Deployed /api/version", True, f"sha={data.get('sha')} env={data.get('env')} up={data.get('uptime_seconds')}s"))
+    except Exception as e:
+        rows.append(("Deployed /api/version", False, str(e)))
+
+    # 3. /api/status
+    try:
+        with urllib.request.urlopen(f"{url}/api/status", timeout=15) as resp:
+            data = json.loads(resp.read())
+            ci = data.get("ci", {})
+            dep = data.get("deploy", {})
+            rows.append(("Deployed /api/status", True, f"ci={ci.get('success')}/{ci.get('failure')} deploy={dep.get('success')}/{dep.get('failure')} issues={data.get('open_autotriage_issues')}"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")[:80]
+        rows.append(("Deployed /api/status", False, f"HTTP {e.code}: {body}"))
+    except Exception as e:
+        rows.append(("Deployed /api/status", False, str(e)))
+
+    # 4. Workflows count
+    repo_name = os.environ.get("GH_REPO", "nt-suuri/ai-harness")
+    try:
+        result = subprocess.run(
+            ["gh", "api", f"repos/{repo_name}/actions/workflows"],
+            capture_output=True, text=True, check=True,
+        )
+        wf = json.loads(result.stdout)
+        names = [w["name"] for w in wf.get("workflows", [])]
+        rows.append((f"Workflows ({len(names)})", True, ", ".join(names[:6]) + ("…" if len(names) > 6 else "")))
+    except Exception as e:
+        rows.append(("Workflows", False, str(e)))
+
+    # 5. Secrets
+    try:
+        result = subprocess.run(
+            ["gh", "secret", "list", "--repo", repo_name, "--json", "name"],
+            capture_output=True, text=True, check=True,
+        )
+        secrets = [s["name"] for s in json.loads(result.stdout)]
+        rows.append((f"Secrets ({len(secrets)} set)", True, ", ".join(secrets) or "(none)"))
+    except Exception as e:
+        rows.append(("Secrets", False, str(e)))
+
+    # 6. Variables
+    try:
+        result = subprocess.run(
+            ["gh", "variable", "list", "--repo", repo_name, "--json", "name,value"],
+            capture_output=True, text=True, check=True,
+        )
+        variables = json.loads(result.stdout)
+        var_str = ", ".join(f"{v['name']}={v['value']!r}" for v in variables) or "(none)"
+        rows.append((f"Variables ({len(variables)} set)", True, var_str))
+    except Exception as e:
+        rows.append(("Variables", False, str(e)))
+
+    # 7. Recent agent-created issues
+    try:
+        repo = gh.repo()
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)  # noqa: UP017
+        recent = [i for i in repo.get_issues(state="all", labels=["autotriage"]) if i.created_at >= seven_days_ago]
+        rows.append(("Recent autotriage issues (7d)", True, f"{len(recent)} created"))
+    except Exception as e:
+        rows.append(("Recent autotriage issues", False, str(e)))
+
+    failed = 0
+    for label, ok, detail in rows:
+        mark = click.style("✓", fg="green") if ok else click.style("✗", fg="red")
+        click.echo(f"  {mark}  {label:<32} {detail}")
+        if not ok:
+            failed += 1
+
+    if failed:
+        click.echo(f"\n{failed} verify check(s) failed", err=True)
+        sys.exit(1)
+    click.echo(f"\nAll {len(rows)} verify checks green.")
+
+
 if __name__ == "__main__":
     cli()

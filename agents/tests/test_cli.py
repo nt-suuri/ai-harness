@@ -174,3 +174,37 @@ def test_self_test_command_reports_failure_on_canary_fail() -> None:
         result = runner.invoke(cli, ["self-test"])
     assert result.exit_code == 1
     assert "failed" in result.output
+
+
+def test_verify_command_runs() -> None:
+    runner = CliRunner()
+    fake_repo = MagicMock()
+    fake_repo.get_issues.return_value = []
+
+    fake_resp = MagicMock()
+    fake_resp.status = 200
+    fake_resp.read.return_value = b'{"status":"pong","sha":"abc1234","env":"local","uptime_seconds":10,"ci":{"success":1,"failure":0},"deploy":{"success":1,"failure":0},"open_autotriage_issues":0}'
+    fake_resp.__enter__ = MagicMock(return_value=fake_resp)
+    fake_resp.__exit__ = MagicMock(return_value=None)
+
+    def subprocess_side_effect(*args: object, **kwargs: object) -> MagicMock:
+        cmd = args[0]
+        if isinstance(cmd, list):
+            joined = " ".join(cmd)
+            if "actions/workflows" in joined:
+                return MagicMock(returncode=0, stdout='{"workflows":[{"name":"ci"}]}')
+            if "secret" in joined:
+                return MagicMock(returncode=0, stdout='[{"name":"RAILWAY_TOKEN"}]')
+            if "variable" in joined:
+                return MagicMock(returncode=0, stdout='[]')
+        return MagicMock(returncode=0, stdout='{}')
+
+    with (
+        patch("agents.cli.subprocess.run", side_effect=subprocess_side_effect),
+        patch("agents.cli.gh.repo", return_value=fake_repo),
+        patch("urllib.request.urlopen", return_value=fake_resp),
+    ):
+        result = runner.invoke(cli, ["verify"])
+
+    assert result.exit_code == 0
+    assert "verify checks green" in result.output
