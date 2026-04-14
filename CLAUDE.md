@@ -45,3 +45,17 @@ uv run uvicorn api.main:app --reload --port 8080
 # web
 pnpm --filter web dev
 ```
+
+## Rollback watch
+
+After every deploy, `rollback-watch.yml` fires. It waits 10 min, queries Sentry for error counts, and opens a GitHub issue (labels: `regression`, `autotriage`) if:
+- Post-deploy error rate > baseline × 3, AND
+- Post-deploy count > 5 absolute
+
+Triggers:
+- `SENTRY_AUTH_TOKEN` secret — required for Sentry API
+- `SENTRY_ORG_SLUG` / `SENTRY_PROJECT_SLUG` repo variables
+
+When unset, the watcher exits 0 silently (no false alerts before Sentry is wired).
+
+Auto-rollback (`git revert` or Railway rollback) is **not** in Phase 5 — it's alert-only. Add auto-revert when the alert pipeline proves reliable.
