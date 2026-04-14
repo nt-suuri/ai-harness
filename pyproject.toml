@@ -5,7 +5,7 @@ description = "Solo 24/7 AI development harness"
 requires-python = ">=3.12"
 
 [tool.uv.workspace]
-members = ["apps/api"]
+members = ["apps/api", "agents"]
 
 [dependency-groups]
 dev = [
@@ -25,7 +25,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["api"]
+known-first-party = ["api", "agents"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -33,5 +33,5 @@ strict = true
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["apps/api/tests"]
-pythonpath = ["apps/api/src"]
+testpaths = ["apps/api/tests", "agents/tests"]
+pythonpath = ["apps/api/src", "agents/src"]
