@@ -59,3 +59,19 @@ Triggers:
 When unset, the watcher exits 0 silently (no false alerts before Sentry is wired).
 
 Auto-rollback (`git revert` or Railway rollback) is **not** in Phase 5 — it's alert-only. Add auto-revert when the alert pipeline proves reliable.
+
+## Triager (nightly self-healing)
+
+`triager.yml` runs at 09:00 UTC daily (and on `workflow_dispatch`). It:
+
+1. Pulls the last 24h of Sentry-grouped issues
+2. For each, checks if a GH issue with marker `<sentry-issue-id>{id}</sentry-issue-id>` already exists (open or closed → dedupe)
+3. Creates new GH issues with labels `bug`, `autotriage` and a Sentry permalink in the body
+
+To enable, populate:
+- `SENTRY_AUTH_TOKEN` secret
+- `SENTRY_ORG_SLUG` / `SENTRY_PROJECT_SLUG` repo variables
+
+Without these, the triager exits 0 silently.
+
+To trigger the loop manually: open the auto-created issue → add `agent:build` label → planner takes over.
