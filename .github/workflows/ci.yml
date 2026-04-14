@@ -23,8 +23,8 @@ jobs:
           enable-cache: true
       - run: uv sync --group dev --all-packages --frozen
       - run: uv run ruff check .
-      - run: uv run mypy apps/api/src
-      - run: uv run pytest apps/api -v
+      - run: uv run mypy apps/api/src agents/src
+      - run: uv run pytest apps/api/tests agents/tests -v
 
   web:
     runs-on: ubuntu-latest
