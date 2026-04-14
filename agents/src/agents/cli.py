@@ -411,5 +411,44 @@ def install_mcp(scope: str, dry_run: bool) -> None:
     click.echo("Reload Claude Code (or your MCP client) to pick up the change.")
 
 
+@cli.command(name="uninstall-mcp")
+@click.option("--scope", type=click.Choice(["user", "project"]), default="user")
+@click.option("--dry-run", is_flag=True)
+def uninstall_mcp(scope: str, dry_run: bool) -> None:
+    """Remove the ai-harness MCP server entry from Claude Code's config."""
+    from pathlib import Path
+
+    if scope == "user":
+        config_path = Path.home() / ".claude.json"
+    else:
+        repo_root = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        config_path = Path(repo_root) / ".mcp.json"
+
+    if not config_path.exists():
+        click.echo(f"No config file at {config_path}; nothing to uninstall")
+        return
+
+    config = json.loads(config_path.read_text())
+    servers = config.get("mcpServers", {})
+    if "ai-harness" not in servers:
+        click.echo(f"ai-harness not registered in {config_path}; nothing to do")
+        return
+
+    del servers["ai-harness"]
+    if not servers:
+        config.pop("mcpServers", None)
+
+    if dry_run:
+        click.echo(f"--- DRY RUN [{config_path}] ---")
+        click.echo(json.dumps(config, indent=2))
+        return
+
+    config_path.write_text(json.dumps(config, indent=2) + "\n")
+    click.echo(f"Removed ai-harness from {config_path}")
+
+
 if __name__ == "__main__":
     cli()

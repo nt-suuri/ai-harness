@@ -254,3 +254,54 @@ def test_install_mcp_writes_project_config(tmp_path, monkeypatch) -> None:
     config = json.loads(config_file.read_text())
     assert "ai-harness" in config["mcpServers"]
     assert config["mcpServers"]["ai-harness"]["command"] == "uv"
+
+
+def test_uninstall_mcp_when_not_registered(tmp_path, monkeypatch) -> None:
+    """Uninstalling when entry doesn't exist prints 'nothing to do'."""
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["uninstall-mcp", "--scope", "project"])
+    assert result.exit_code == 0
+    assert "nothing" in result.output.lower() or "no config" in result.output.lower()
+
+
+def test_uninstall_mcp_removes_entry(tmp_path, monkeypatch) -> None:
+    """Uninstalling removes ai-harness entry and preserves other servers."""
+    monkeypatch.chdir(tmp_path)
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(json.dumps({
+        "mcpServers": {
+            "ai-harness": {"command": "uv"},
+            "other": {"command": "node"},
+        },
+    }))
+
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["uninstall-mcp", "--scope", "project"])
+
+    assert result.exit_code == 0
+    assert "Removed" in result.output
+    config = json.loads(config_file.read_text())
+    assert "ai-harness" not in config["mcpServers"]
+    assert "other" in config["mcpServers"]
+
+
+def test_uninstall_mcp_dry_run(tmp_path, monkeypatch) -> None:
+    """Dry-run prints config without modifying file."""
+    monkeypatch.chdir(tmp_path)
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(json.dumps({"mcpServers": {"ai-harness": {"command": "uv"}}}))
+
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["uninstall-mcp", "--scope", "project", "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "DRY RUN" in result.output
+    config_after = json.loads(config_file.read_text())
+    assert "ai-harness" in config_after["mcpServers"]
