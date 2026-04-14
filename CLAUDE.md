@@ -40,6 +40,7 @@ Stored as repo secrets:
 ```bash
 uv sync --all-extras
 pnpm install
+uv run pre-commit install   # one-time: enable git pre-commit hooks
 # api
 uv run uvicorn api.main:app --reload --port 8080
 # web
