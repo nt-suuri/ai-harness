@@ -93,3 +93,60 @@ def test_harness_entry_point_works() -> None:
     )
     assert result.returncode == 0
     assert "ai-harness operator CLI" in result.stdout
+
+
+def test_doctor_runs_and_reports() -> None:
+    runner = CliRunner()
+    fake_repo = MagicMock(full_name="nt-suuri/ai-harness")
+    with (
+        patch("agents.cli.gh.repo", return_value=fake_repo),
+        patch("agents.cli.subprocess.run") as run,
+    ):
+        run.return_value = MagicMock(stdout='[{"name":"PAUSE_AGENTS","value":""}]', returncode=0)
+        result = runner.invoke(cli, ["doctor"])
+    assert "checks" in result.output.lower() or "✓" in result.output or "✗" in result.output
+
+
+def test_logs_command_lists_runs() -> None:
+    runner = CliRunner()
+    from datetime import UTC, datetime
+
+    fake_run = MagicMock(
+        conclusion="success",
+        status="completed",
+        head_sha="abc1234567",
+        created_at=datetime(2026, 4, 14, 12, 0, tzinfo=UTC),
+        head_commit=MagicMock(message="feat: a thing"),
+    )
+    fake_workflow = MagicMock()
+    fake_workflow.get_runs.return_value = [fake_run]
+    fake_repo = MagicMock()
+    fake_repo.get_workflow.return_value = fake_workflow
+
+    with patch("agents.cli.gh.repo", return_value=fake_repo):
+        result = runner.invoke(cli, ["logs"])
+
+    assert result.exit_code == 0
+    assert "abc1234" in result.output
+
+
+def test_logs_empty_runs() -> None:
+    runner = CliRunner()
+    fake_workflow = MagicMock()
+    fake_workflow.get_runs.return_value = []
+    fake_repo = MagicMock()
+    fake_repo.get_workflow.return_value = fake_workflow
+
+    with patch("agents.cli.gh.repo", return_value=fake_repo):
+        result = runner.invoke(cli, ["logs", "--workflow", "x.yml"])
+    assert result.exit_code == 0
+    assert "No runs" in result.output
+
+
+def test_next_tag_prints_tag_format() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["next-tag"])
+    assert result.exit_code == 0
+    import re
+
+    assert re.search(r"v\d{4}\.\d{2}\.\d{2}-\d{4}", result.output)

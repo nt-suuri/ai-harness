@@ -1,5 +1,7 @@
 import asyncio
+import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -146,6 +148,93 @@ def resume() -> None:
     """Resume agent workflows (clears PAUSE_AGENTS)."""
     _set_pause("")
     click.echo("PAUSE_AGENTS cleared — workflows will run on next trigger")
+
+
+@cli.command()
+def doctor() -> None:
+    """Check operator environment health."""
+    rows: list[tuple[str, bool, str]] = []
+
+    rows.append(("gh CLI", shutil.which("gh") is not None, shutil.which("gh") or "missing"))
+    rows.append(("uv CLI", shutil.which("uv") is not None, shutil.which("uv") or "missing"))
+    rows.append(("railway CLI", shutil.which("railway") is not None, shutil.which("railway") or "missing"))
+    rows.append(("flyctl", shutil.which("flyctl") is not None, shutil.which("flyctl") or "missing (not used by current pipeline)"))
+
+    gh_token_ok = bool(os.environ.get("GITHUB_TOKEN"))
+    if not gh_token_ok:
+        try:
+            tok = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=True).stdout.strip()
+            gh_token_ok = bool(tok)
+        except Exception:
+            gh_token_ok = False
+    rows.append(("GitHub auth", gh_token_ok, "via env or gh auth"))
+
+    rows.append(("ANTHROPIC_API_KEY", bool(os.environ.get("ANTHROPIC_API_KEY")), "shell env"))
+    rows.append(("SENTRY_AUTH_TOKEN", bool(os.environ.get("SENTRY_AUTH_TOKEN")), "shell env"))
+    rows.append(("RESEND_API_KEY", bool(os.environ.get("RESEND_API_KEY")), "shell env"))
+
+    try:
+        repo = gh.repo()
+        rows.append(("Repo access", True, repo.full_name))
+    except Exception as e:
+        rows.append(("Repo access", False, f"error: {e}"))
+
+    try:
+        result = subprocess.run(
+            ["gh", "variable", "list", "--repo", os.environ.get("GH_REPO", "nt-suuri/ai-harness"), "--json", "name,value"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        vars_data = json.loads(result.stdout)
+        pause_var = next((v for v in vars_data if v["name"] == "PAUSE_AGENTS"), None)
+        if pause_var is None:
+            rows.append(("PAUSE_AGENTS", True, "unset (running)"))
+        else:
+            paused = pause_var["value"].strip().lower() == "true"
+            rows.append(("PAUSE_AGENTS", not paused, "PAUSED" if paused else f"running (value={pause_var['value']!r})"))
+    except Exception as e:
+        rows.append(("PAUSE_AGENTS", False, f"could not check: {e}"))
+
+    for label, ok, detail in rows:
+        mark = click.style("✓", fg="green") if ok else click.style("✗", fg="red")
+        click.echo(f"  {mark}  {label:<22} {detail}")
+
+    failed = sum(1 for _, ok, _ in rows if not ok)
+    if failed:
+        click.echo(f"\n{failed} check(s) failed.", err=True)
+        sys.exit(1)
+    click.echo("\nAll checks green.")
+
+
+@cli.command()
+@click.option("--workflow", "-w", default="ci.yml")
+@click.option("--limit", "-n", type=int, default=10)
+def logs(workflow: str, limit: int) -> None:
+    """Show recent workflow run summaries."""
+    from typing import Any
+
+    repo = gh.repo()
+    runs: list[Any] = list(repo.get_workflow(workflow).get_runs()[:limit])
+    if not runs:
+        click.echo(f"No runs for {workflow}")
+        return
+    for r in runs:
+        status_color = {"success": "green", "failure": "red", None: "yellow"}.get(r.conclusion, "white")
+        status_text = r.conclusion or r.status
+        click.echo(
+            f"  {click.style(status_text or 'queued', fg=status_color):<20} "
+            f"{r.head_sha[:7]}  {r.created_at.strftime('%Y-%m-%d %H:%M')}  "
+            f"{r.head_commit.message.splitlines()[0][:60] if r.head_commit else ''}"
+        )
+
+
+@cli.command(name="next-tag")
+def next_tag() -> None:
+    """Print the tag that release-notes would create now."""
+    from agents.release_notes import _next_tag
+
+    click.echo(_next_tag())
 
 
 if __name__ == "__main__":
