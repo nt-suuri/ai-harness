@@ -5,11 +5,13 @@ from fastapi.staticfiles import StaticFiles
 
 from api.sentry import init_sentry
 from api.status import router as status_router
+from api.version import router as version_router
 
 init_sentry()
 
 app = FastAPI(title="ai-harness api")
 app.include_router(status_router)
+app.include_router(version_router)
 
 
 @app.get("/api/ping")
