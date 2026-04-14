@@ -21,7 +21,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-      - run: uv sync --all-extras --frozen
+      - run: uv sync --group dev --all-packages --frozen
       - run: uv run ruff check .
       - run: uv run mypy apps/api/src
       - run: uv run pytest apps/api -v
@@ -57,7 +57,7 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-      - run: uv sync --all-extras --frozen
+      - run: uv sync --group dev --all-packages --frozen
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
       - run: pnpm --filter web e2e
