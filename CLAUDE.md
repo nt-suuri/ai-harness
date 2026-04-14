@@ -9,8 +9,7 @@
 ## Branch protection (must be configured on GitHub)
 
 - `main` is protected.
-- Required checks: `ci / python`, `ci / web`, `ci / e2e`, `ci / docker`.
-- Phase 3 will add `reviewer / quality`, `reviewer / security`, `reviewer / deps`.
+- Required checks: `ci / python`, `ci / web`, `ci / e2e`, `ci / docker`, `reviewer / review (quality)`, `reviewer / review (security)`, `reviewer / review (deps)`.
 - Require 1 human approval. No force-push. No direct push to `main`.
 
 ## Secrets
