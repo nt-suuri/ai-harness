@@ -12,6 +12,18 @@
 - Required checks: `ci / python`, `ci / web`, `ci / e2e`, `ci / docker`, `reviewer / review (quality)`, `reviewer / review (security)`, `reviewer / review (deps)`.
 - Require 1 human approval. No force-push. No direct push to `main`.
 
+## Feature intake: `agent:build` label
+
+- Open a GitHub issue describing what you want.
+- Apply the `agent:build` label.
+- `planner.yml` fires → `agents/planner.py` runs Opus 4.6 with filesystem tools.
+- Planner opens a PR on a `feat/<issue>-<slug>` branch, referencing the issue.
+- PR goes through CI + 3-pass reviewer + 1 human approval, then merges.
+
+If planner makes no changes, it posts its plan summary as an issue comment instead.
+
+Kill-switch: `PAUSE_AGENTS=true` halts planner workflows.
+
 ## Secrets
 
 Stored as repo secrets:
