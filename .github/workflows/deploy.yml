@@ -16,7 +16,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - name: Check kill-switch
         env:
@@ -27,5 +27,7 @@ jobs:
             exit 0
           fi
       - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only --wait-timeout 300
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli@latest
+      - name: Deploy
+        run: railway up --service ${{ vars.RAILWAY_SERVICE || 'ai-harness' }} --detach

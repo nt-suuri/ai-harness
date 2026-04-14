@@ -2,11 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stand up a deployable monorepo: FastAPI `/ping` endpoint + Vite/React shell + a CI gate on every PR + a manual-trigger Fly deploy. Exit criterion: `curl https://<app>.fly.dev/ping` returns `pong` AND any PR blocks merge until CI is green.
+## Plan amendment: 2026-04-14 — Fly → Railway
 
-**Architecture:** Single git repo, uv-managed Python workspace, pnpm-managed JS workspace, two Fly processes (one app, two processes — `api` and `web`). CI is one GitHub Actions workflow. Deploy is one workflow triggered on push to `main`. No agents yet — Phase 2-7 add those.
+Fly.io now requires a credit card for new accounts. Railway's free tier gives $5/mo credit with no card required — sufficient for a scale-to-zero Dockerfile deploy. All Fly references below have been updated to Railway equivalents.
 
-**Tech Stack:** Python 3.12 + uv + FastAPI + sentry-sdk; TypeScript + Vite + React 19 + @sentry/react; pnpm 9; GitHub Actions; Fly.io (flyctl); ruff, mypy, pytest, vitest, playwright.
+**Goal:** Stand up a deployable monorepo: FastAPI `/ping` endpoint + Vite/React shell + a CI gate on every PR + a manual-trigger Railway deploy. Exit criterion: `curl https://<app>.up.railway.app/api/ping` returns `pong` AND any PR blocks merge until CI is green.
+
+**Architecture:** Single git repo, uv-managed Python workspace, pnpm-managed JS workspace. CI is one GitHub Actions workflow. Deploy is one workflow triggered on push to `main`. No agents yet — Phase 2-7 add those.
+
+**Tech Stack:** Python 3.12 + uv + FastAPI + sentry-sdk; TypeScript + Vite + React 19 + @sentry/react; pnpm 9; GitHub Actions; Railway (@railway/cli); ruff, mypy, pytest, vitest, playwright.
 
 **Working directory for every command:** `/Users/nt-suuri/workspace/lab/ai-harness` unless stated otherwise.
 
@@ -40,7 +44,7 @@ ai-harness/
 │   └── 2026-04-14-phase-1-foundation.md   (this file)
 ├── CLAUDE.md                  operator runbook (stub)
 ├── Dockerfile                 multi-stage: build web, bundle with api
-├── fly.toml                   one app, two processes
+├── railway.json               Railway deploy config
 ├── package.json               pnpm workspace root
 ├── pnpm-workspace.yaml
 ├── pyproject.toml             uv workspace root
@@ -376,7 +380,7 @@ def init_sentry() -> bool:
         dsn=dsn,
         traces_sample_rate=0.1,
         environment=os.environ.get("ENV", "local"),
-        release=os.environ.get("FLY_RELEASE_VERSION", "dev"),
+        release=os.environ.get("RAILWAY_GIT_COMMIT_SHA", "dev"),
     )
     return True
 ```
@@ -898,50 +902,36 @@ git commit -m "ci: add PR gate (python, web, e2e, docker)"
 
 ---
 
-### Task 10: Fly.io config (`fly.toml`)
+### Task 10: Railway config (`railway.json`)
 
 **Files:**
-- Create: `fly.toml`
+- Create: `railway.json`
 
-Fly app name: **`ai-harness`** (adjust in Task 13 if taken). Region: `nrt` (Tokyo — matches user timezone). Primary process serves both static web and api on port 8080.
+Tells Railway to build from `Dockerfile` and healthcheck `/api/ping`. Scale-to-zero is the default on the free tier.
 
-- [ ] **Step 1: Write `fly.toml`**
+- [ ] **Step 1: Write `railway.json`**
 
-```toml
-app = "ai-harness"
-primary_region = "nrt"
-
-[build]
-  dockerfile = "Dockerfile"
-
-[env]
-  ENV = "production"
-
-[http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = "suspend"
-  auto_start_machines = true
-  min_machines_running = 0
-
-  [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    path = "/api/ping"
-    timeout = "5s"
-
-[[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 256
+```json
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "healthcheckPath": "/api/ping",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add fly.toml
-git commit -m "chore(deploy): add fly.toml"
+git add railway.json
+git commit -m "chore(deploy): add railway.json"
 ```
 
 ---
@@ -951,7 +941,7 @@ git commit -m "chore(deploy): add fly.toml"
 **Files:**
 - Create: `.github/workflows/deploy.yml`
 
-This deploys on every push to `main` AND on manual `workflow_dispatch`. No rollback yet — Phase 5 adds the watcher.
+Deploys on every push to `main` AND on manual `workflow_dispatch`. Uses Railway CLI. `--detach` returns as soon as the build is queued. No rollback yet — Phase 5 adds the watcher.
 
 - [ ] **Step 1: Write the workflow**
 
@@ -974,7 +964,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - name: Check kill-switch
         env:
@@ -985,8 +975,10 @@ jobs:
             exit 0
           fi
       - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only --wait-timeout 300
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli@latest
+      - name: Deploy
+        run: railway up --service ${{ vars.RAILWAY_SERVICE || 'ai-harness' }} --detach
 ```
 
 - [ ] **Step 2: Commit**
@@ -1027,7 +1019,7 @@ Stored as repo secrets:
 
 | Secret | Used by | Phase added |
 |---|---|---|
-| `FLY_API_TOKEN` | deploy.yml | 1 |
+| `RAILWAY_TOKEN` | deploy.yml | 1 |
 | `ANTHROPIC_API_KEY` | all agents | 2 |
 | `SENTRY_AUTH_TOKEN` | triager, healthcheck | 6 |
 | `RESEND_API_KEY` | healthcheck | 7 |
@@ -1053,7 +1045,7 @@ git commit -m "docs(repo): add CLAUDE.md operator runbook"
 
 ---
 
-### Task 13: Create GitHub remote + Fly app + secrets, then push
+### Task 13: Create GitHub remote + Railway project + secrets, then push
 
 This task has **manual steps the agent cannot do for you**. Follow them in order.
 
@@ -1075,28 +1067,29 @@ git push -u origin main
 ```
 Expected: push succeeds.
 
-- [ ] **Step 3: Create Fly app**
+- [ ] **Step 3: Create Railway project**
 
-```bash
-flyctl auth login     # interactive, only if not already logged in
-flyctl apps create ai-harness --org personal
-```
-If the name is taken, pick `ai-harness-<yourinitials>` and update `app = ` in `fly.toml`, commit, push.
+Go to [railway.app](https://railway.app), sign up / log in (no card required for free tier).
+Create a new project named `ai-harness`. Connect it to the GitHub repo OR leave unconnected and use CLI deploy.
 
-- [ ] **Step 4: Get a Fly deploy token**
+- [ ] **Step 4: Generate a Railway service token**
 
-```bash
-flyctl tokens create deploy -x 999999h -a ai-harness
-```
-Copy the token output.
+In Railway dashboard: Project Settings → Tokens → New Token (project-scoped). Copy the token.
 
 - [ ] **Step 5: Set the GitHub secret**
 
 ```bash
-gh secret set FLY_API_TOKEN --body "<paste token>"
+gh secret set RAILWAY_TOKEN --body "<paste token>" --repo <your-user>/ai-harness
 ```
 
-- [ ] **Step 6: Configure branch protection**
+- [ ] **Step 6: (optional) Set RAILWAY_SERVICE if service name differs**
+
+If the Railway service name is not `ai-harness`:
+```bash
+gh variable set RAILWAY_SERVICE --body "<service-name>" --repo <your-user>/ai-harness
+```
+
+- [ ] **Step 7: Configure branch protection**
 
 Run:
 ```bash
@@ -1111,14 +1104,6 @@ gh api -X PUT "repos/{owner}/{repo}/branches/main/protection" \
   -F restrictions= \
   -F allow_force_pushes=false \
   -F allow_deletions=false
-```
-
-- [ ] **Step 7: Commit any `fly.toml` rename (if step 3 forced one)**
-
-```bash
-git add fly.toml
-git commit -m "chore(deploy): adjust fly app name" || echo "no change"
-git push
 ```
 
 ---
@@ -1143,16 +1128,14 @@ Expected: `deploy / deploy` turns green within ~5 min.
 - [ ] **Step 3: Hit the endpoint**
 
 ```bash
-curl -sS https://ai-harness.fly.dev/api/ping
+curl -sS https://<service>-<hash>.up.railway.app/api/ping
 ```
-Expected: `{"status":"pong"}`
-
-If you renamed the app in Task 13 step 3, use that hostname.
+Expected: `{"status":"pong"}`. The Railway URL is shown in the service dashboard after first deploy. Optionally set a custom domain.
 
 - [ ] **Step 4: Verify static web loads**
 
 ```bash
-curl -sS -I https://ai-harness.fly.dev/ | head -1
+curl -sS -I https://<service>-<hash>.up.railway.app/ | head -1
 ```
 Expected: `HTTP/2 200`.
 
@@ -1160,7 +1143,7 @@ Expected: `HTTP/2 200`.
 
 Phase 1 is done when all of:
 
-- [ ] `curl https://ai-harness.fly.dev/api/ping` returns `{"status":"pong"}`
+- [ ] `curl https://<app>.up.railway.app/api/ping` returns `{"status":"pong"}`
 - [ ] GitHub branch protection blocks merge to `main` without green CI + 1 approval
 - [ ] A PR opened against `main` runs the 4 CI jobs (python, web, e2e, docker) and they all pass
 
@@ -1170,11 +1153,11 @@ No commit for this task — it's pure verification.
 
 ## Phase 1 exit checklist
 
-- [ ] Working Fly deploy at `https://ai-harness.fly.dev/api/ping`
+- [ ] Working Railway deploy at `https://<app>.up.railway.app/api/ping`
 - [ ] Branch protection configured with the 4 CI checks required
 - [ ] All 10+ commits pushed to `origin/main`
 - [ ] `CLAUDE.md` committed
-- [ ] `FLY_API_TOKEN` secret set
+- [ ] `RAILWAY_TOKEN` secret set
 - [ ] Kill-switch variable `PAUSE_AGENTS` created (can be empty — workflow treats missing as off)
 
 ## What this phase does NOT build (deferred)

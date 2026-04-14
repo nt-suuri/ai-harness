@@ -19,7 +19,7 @@ Stored as repo secrets:
 
 | Secret | Used by | Phase added |
 |---|---|---|
-| `FLY_API_TOKEN` | deploy.yml | 1 |
+| `RAILWAY_TOKEN` | deploy.yml | 1 |
 | `ANTHROPIC_API_KEY` | all agents | 2 |
 | `SENTRY_AUTH_TOKEN` | triager, healthcheck | 6 |
 | `RESEND_API_KEY` | healthcheck | 7 |
