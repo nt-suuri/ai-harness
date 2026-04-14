@@ -96,6 +96,14 @@ To trigger the loop manually: open the auto-created issue → add `agent:build` 
 
 Requires `ANTHROPIC_API_KEY` secret. Without it, the workflow fails at `run_agent`; the previous deploy is not affected.
 
+## Issue auto-labeler
+
+`issue-labeler.yml` runs when a new issue is opened. An agent picks labels from a fixed allow-list (`area:api/web/agents/ci/docs`, `priority:high/low`) and applies them via gh. Skipped if the issue already has managed labels.
+
+Allow-list lives in `agents/src/agents/issue_labeler.py:ALLOWED_LABELS`.
+
+Requires `ANTHROPIC_API_KEY` secret.
+
 ## Stale issue closer (weekly)
 
 `stale.yml` runs Sundays at 10:00 UTC. Closes any open issue with label `autotriage` whose `updated_at` is more than 14 days ago. Adds a comment explaining the close. The triager will reopen automatically if the underlying error recurs (Sentry id-based dedup).
