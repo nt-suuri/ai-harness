@@ -15,6 +15,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    container: ghcr.io/railwayapp/cli:latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
@@ -27,7 +28,5 @@ jobs:
             exit 0
           fi
       - uses: actions/checkout@v4
-      - name: Install Railway CLI
-        run: npm i -g @railway/cli@latest
       - name: Deploy
         run: railway up --service ${{ vars.RAILWAY_SERVICE || 'ai-harness' }} --detach
