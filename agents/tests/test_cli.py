@@ -1,3 +1,4 @@
+import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -208,3 +209,48 @@ def test_verify_command_runs() -> None:
 
     assert result.exit_code == 0
     assert "verify checks green" in result.output
+
+
+def test_install_mcp_writes_user_config(tmp_path, monkeypatch) -> None:
+    """In user scope with dry-run, output shows config without writing."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["install-mcp", "--scope", "user", "--dry-run"])
+
+    assert result.exit_code == 0
+    assert "DRY RUN" in result.output or "ai-harness" in result.output
+
+
+def test_install_mcp_dry_run_does_not_write(tmp_path, monkeypatch) -> None:
+    """In dry-run, no file should be written."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["install-mcp", "--scope", "project", "--dry-run"])
+
+    assert result.exit_code == 0
+    assert not (tmp_path / ".mcp.json").exists()
+
+
+def test_install_mcp_writes_project_config(tmp_path, monkeypatch) -> None:
+    """In project scope without dry-run, .mcp.json is created."""
+    monkeypatch.chdir(tmp_path)
+
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["install-mcp", "--scope", "project"])
+
+    assert result.exit_code == 0
+    config_file = tmp_path / ".mcp.json"
+    assert config_file.exists()
+    config = json.loads(config_file.read_text())
+    assert "ai-harness" in config["mcpServers"]
+    assert config["mcpServers"]["ai-harness"]["command"] == "uv"

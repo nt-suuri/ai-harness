@@ -369,5 +369,47 @@ def verify(url: str) -> None:
     click.echo(f"\nAll {len(rows)} verify checks green.")
 
 
+@cli.command(name="install-mcp")
+@click.option("--scope", type=click.Choice(["user", "project"]), default="user", help="Where to register")
+@click.option("--dry-run", is_flag=True)
+def install_mcp(scope: str, dry_run: bool) -> None:
+    """Register the ai-harness MCP server in Claude Code's config."""
+    from pathlib import Path
+
+    repo_root = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    server_entry = {
+        "command": "uv",
+        "args": ["run", "python", "-m", "agents.mcp_server"],
+        "cwd": repo_root,
+        "env": {"GH_REPO": os.environ.get("GH_REPO", "nt-suuri/ai-harness")},
+    }
+
+    config_path = Path.home() / ".claude.json" if scope == "user" else Path(repo_root) / ".mcp.json"
+
+    config = json.loads(config_path.read_text()) if config_path.exists() else {}
+
+    config.setdefault("mcpServers", {})
+    existing = config["mcpServers"].get("ai-harness")
+
+    if existing == server_entry:
+        click.echo(f"ai-harness MCP already registered at {config_path}")
+        return
+
+    config["mcpServers"]["ai-harness"] = server_entry
+
+    if dry_run:
+        click.echo(f"--- DRY RUN [{config_path}] ---")
+        click.echo(json.dumps(config, indent=2))
+        return
+
+    config_path.write_text(json.dumps(config, indent=2) + "\n")
+    click.echo(f"Registered ai-harness MCP server at {config_path}")
+    click.echo("Reload Claude Code (or your MCP client) to pick up the change.")
+
+
 if __name__ == "__main__":
     cli()
