@@ -40,3 +40,19 @@ def count_events_since(
     since: datetime,
 ) -> int:
     return len(list_events(organization_slug, project_slug, since=since))
+
+
+def list_issues(
+    organization_slug: str,
+    project_slug: str,
+    since: datetime | None = None,
+) -> list[dict[str, Any]]:
+    if since is None:
+        since = datetime.now(UTC) - timedelta(hours=24)
+    with _client() as c:
+        resp = c.get(
+            f"/projects/{organization_slug}/{project_slug}/issues/",
+            params={"since": since.isoformat()},
+        )
+        resp.raise_for_status()
+        return cast(list[dict[str, Any]], resp.json())

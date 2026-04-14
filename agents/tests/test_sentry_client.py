@@ -102,3 +102,42 @@ def test_count_events_since_returns_zero_on_empty() -> None:
         n = sentry.count_events_since("o", "p", since=datetime.now(UTC))
 
     assert n == 0
+
+
+def test_list_issues_returns_list() -> None:
+    fake_client = MagicMock()
+    fake_client.__enter__.return_value = fake_client
+    fake_client.__exit__.return_value = None
+    fake_client.get.return_value = MagicMock(
+        status_code=200,
+        json=MagicMock(return_value=[
+            {"id": "1234", "title": "ZeroDivisionError", "count": "5"},
+            {"id": "5678", "title": "KeyError: 'x'", "count": "1"},
+        ]),
+    )
+
+    pinned = datetime(2026, 4, 14, tzinfo=UTC)
+    with patch("agents.lib.sentry._client", return_value=fake_client):
+        issues = sentry.list_issues("org", "proj", since=pinned)
+
+    assert len(issues) == 2
+    assert issues[0]["id"] == "1234"
+    fake_client.get.assert_called_once()
+    call = fake_client.get.call_args
+    assert call.args[0] == "/projects/org/proj/issues/"
+    assert call.kwargs["params"]["since"] == pinned.isoformat()
+
+
+def test_list_issues_default_since_is_24h_ago() -> None:
+    fake_client = MagicMock()
+    fake_client.__enter__.return_value = fake_client
+    fake_client.__exit__.return_value = None
+    fake_client.get.return_value = MagicMock(status_code=200, json=MagicMock(return_value=[]))
+
+    with patch("agents.lib.sentry._client", return_value=fake_client):
+        sentry.list_issues("o", "p")
+
+    since_str = fake_client.get.call_args.kwargs["params"]["since"]
+    since_dt = datetime.fromisoformat(since_str)
+    delta = datetime.now(UTC) - since_dt
+    assert timedelta(hours=23, minutes=59) <= delta <= timedelta(hours=24, minutes=1)
