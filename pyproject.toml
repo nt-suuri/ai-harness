@@ -1,0 +1,25 @@
+[project]
+name = "ai-harness"
+version = "0.0.0"
+description = "Solo 24/7 AI development harness"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = ["apps/api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["apps/api/tests"]
+pythonpath = ["apps/api/src"]
