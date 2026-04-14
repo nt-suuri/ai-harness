@@ -6,12 +6,14 @@ Usage:
 """
 
 import argparse
+import asyncio
+import json as _json
 import os
 import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from agents.lib import email, gh, kill_switch, sentry
+from agents.lib import email, gh, kill_switch, prompts, sentry
 
 _HEALTH_ISSUE_TITLE = "HEALTH dashboard"
 
@@ -31,13 +33,42 @@ def _build_summary(
     deploy_success: int,
     deploy_failure: int,
     sentry_event_count: int,
+    intro: str = "",
 ) -> str:
+    intro_block = f"{intro}\n\n" if intro else ""
     return (
         f"## {date_str}\n\n"
+        f"{intro_block}"
         f"- CI runs: {ci_success} success, {ci_failure} failure\n"
         f"- Deploys: {deploy_success} success, {deploy_failure} failure\n"
         f"- Sentry events (last 24h): {sentry_event_count}\n"
     )
+
+
+async def _summarize_async(stats: dict[str, int | str]) -> str:
+    from agents.lib.anthropic import run_agent
+
+    system = prompts.load("healthcheck_summary")
+    user = "Summarize this healthcheck:\n\n" + _json.dumps(stats, indent=2)
+    result = await run_agent(prompt=user, system=system, max_turns=5, allowed_tools=[])
+    parts: list[str] = []
+    for m in result.messages:
+        if isinstance(m, dict) and m.get("type") == "text" and "text" in m:
+            parts.append(str(m["text"]))
+        elif hasattr(m, "text"):
+            parts.append(str(m.text))
+    return "\n".join(parts).strip()
+
+
+def _summarize(stats: dict[str, int | str]) -> str:
+    """Sync wrapper; returns empty string on any failure (so digest still generates)."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return ""
+    try:
+        return asyncio.run(_summarize_async(stats))
+    except Exception as e:
+        print(f"warning: healthcheck summary failed: {e}", flush=True)
+        return ""
 
 
 def _count_runs(repo: Any, workflow_file: str, since: datetime) -> tuple[int, int]:
@@ -70,6 +101,14 @@ def run_healthcheck(*, dry_run: bool) -> int:
         except Exception as e:
             print(f"warning: sentry count failed: {e}", flush=True)
 
+    intro = _summarize({
+        "date_str": date_str,
+        "ci_success": ci_success,
+        "ci_failure": ci_failure,
+        "deploy_success": deploy_success,
+        "deploy_failure": deploy_failure,
+        "sentry_event_count": sentry_count,
+    })
     summary = _build_summary(
         date_str=date_str,
         ci_success=ci_success,
@@ -77,6 +116,7 @@ def run_healthcheck(*, dry_run: bool) -> int:
         deploy_success=deploy_success,
         deploy_failure=deploy_failure,
         sentry_event_count=sentry_count,
+        intro=intro,
     )
 
     if dry_run:

@@ -1,7 +1,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
-from agents.healthcheck import _build_summary, run_healthcheck
+from agents.healthcheck import _build_summary, _summarize, run_healthcheck
 
 
 def test_build_summary_includes_counts() -> None:
@@ -30,6 +30,7 @@ def test_run_healthcheck_returns_zero() -> None:
     with (
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
         patch("agents.healthcheck.sentry.count_events_since", return_value=0),
+        patch("agents.healthcheck._summarize", return_value=""),
         patch.dict(os.environ, {"SENTRY_ORG_SLUG": "o", "SENTRY_PROJECT_SLUG": "p"}, clear=True),
     ):
         rc = run_healthcheck(dry_run=False)
@@ -47,6 +48,7 @@ def test_run_healthcheck_dry_run_skips_writes() -> None:
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
         patch("agents.healthcheck.sentry.count_events_since", return_value=0),
         patch("agents.healthcheck.email.send_email") as send,
+        patch("agents.healthcheck._summarize", return_value=""),
         patch.dict(os.environ, {"SENTRY_ORG_SLUG": "o", "SENTRY_PROJECT_SLUG": "p"}, clear=True),
     ):
         rc = run_healthcheck(dry_run=True)
@@ -68,6 +70,7 @@ def test_run_healthcheck_sends_email_when_configured() -> None:
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
         patch("agents.healthcheck.sentry.count_events_since", return_value=0),
         patch("agents.healthcheck.email.send_email", return_value="msg1") as send,
+        patch("agents.healthcheck._summarize", return_value=""),
         patch.dict(
             os.environ,
             {
@@ -96,6 +99,7 @@ def test_run_healthcheck_skips_email_when_no_recipient() -> None:
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
         patch("agents.healthcheck.sentry.count_events_since", return_value=0),
         patch("agents.healthcheck.email.send_email") as send,
+        patch("agents.healthcheck._summarize", return_value=""),
         patch.dict(
             os.environ,
             {"SENTRY_ORG_SLUG": "o", "SENTRY_PROJECT_SLUG": "p", "RESEND_API_KEY": "rk"},
@@ -105,3 +109,35 @@ def test_run_healthcheck_skips_email_when_no_recipient() -> None:
         rc = run_healthcheck(dry_run=False)
     assert rc == 0
     send.assert_not_called()
+
+
+def test_build_summary_with_intro() -> None:
+    summary = _build_summary(
+        date_str="2026-04-14",
+        ci_success=10,
+        ci_failure=0,
+        deploy_success=2,
+        deploy_failure=0,
+        sentry_event_count=0,
+        intro="Healthy day with no issues.",
+    )
+    assert "Healthy day" in summary
+    assert "## 2026-04-14" in summary
+    assert "10 success" in summary
+
+
+def test_build_summary_without_intro_unchanged() -> None:
+    summary = _build_summary(
+        date_str="2026-04-14",
+        ci_success=10,
+        ci_failure=0,
+        deploy_success=2,
+        deploy_failure=0,
+        sentry_event_count=0,
+    )
+    assert "## 2026-04-14\n\n-" in summary
+
+
+def test_summarize_returns_empty_when_no_api_key() -> None:
+    with patch.dict(os.environ, {}, clear=True):
+        assert _summarize({"date_str": "2026-04-14"}) == ""
