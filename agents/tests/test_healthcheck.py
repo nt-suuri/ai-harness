@@ -23,7 +23,9 @@ def test_run_healthcheck_returns_zero() -> None:
     fake_repo = MagicMock()
     fake_repo.get_issues.return_value = []
     fake_repo.create_issue.return_value = MagicMock(number=1, html_url="https://x")
-    fake_repo.get_workflow_runs.return_value = []
+    fake_workflow = MagicMock()
+    fake_workflow.get_runs.return_value = []
+    fake_repo.get_workflow.return_value = fake_workflow
 
     with (
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
@@ -37,7 +39,9 @@ def test_run_healthcheck_returns_zero() -> None:
 def test_run_healthcheck_dry_run_skips_writes() -> None:
     fake_repo = MagicMock()
     fake_repo.get_issues.return_value = []
-    fake_repo.get_workflow_runs.return_value = []
+    fake_workflow = MagicMock()
+    fake_workflow.get_runs.return_value = []
+    fake_repo.get_workflow.return_value = fake_workflow
 
     with (
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
@@ -56,7 +60,9 @@ def test_run_healthcheck_sends_email_when_configured() -> None:
     fake_repo = MagicMock()
     fake_repo.get_issues.return_value = []
     fake_repo.create_issue.return_value = MagicMock(number=1)
-    fake_repo.get_workflow_runs.return_value = []
+    fake_workflow = MagicMock()
+    fake_workflow.get_runs.return_value = []
+    fake_repo.get_workflow.return_value = fake_workflow
 
     with (
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),
@@ -82,7 +88,9 @@ def test_run_healthcheck_skips_email_when_no_recipient() -> None:
     fake_repo = MagicMock()
     fake_repo.get_issues.return_value = []
     fake_repo.create_issue.return_value = MagicMock(number=1)
-    fake_repo.get_workflow_runs.return_value = []
+    fake_workflow = MagicMock()
+    fake_workflow.get_runs.return_value = []
+    fake_repo.get_workflow.return_value = fake_workflow
 
     with (
         patch("agents.healthcheck.gh.repo", return_value=fake_repo),

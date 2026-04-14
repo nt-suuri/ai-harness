@@ -43,10 +43,8 @@ def _build_summary(
 def _count_runs(repo: Any, workflow_file: str, since: datetime) -> tuple[int, int]:
     success = 0
     failure = 0
-    for r in repo.get_workflow_runs(
-        workflow_file_name=workflow_file,
-        created=f">={since.date().isoformat()}",
-    ):
+    workflow = repo.get_workflow(workflow_file)
+    for r in workflow.get_runs(created=f">={since.date().isoformat()}"):
         if r.conclusion == "success":
             success += 1
         elif r.conclusion == "failure":
