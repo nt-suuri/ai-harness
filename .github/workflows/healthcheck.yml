@@ -1,0 +1,38 @@
+name: healthcheck
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+      SENTRY_PROJECT_SLUG: ${{ vars.SENTRY_PROJECT_SLUG }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      HEALTHCHECK_TO_EMAIL: ${{ vars.HEALTHCHECK_TO_EMAIL }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check kill-switch
+        env:
+          PAUSE: ${{ vars.PAUSE_AGENTS }}
+        run: |
+          if [ "${PAUSE}" = "true" ]; then
+            echo "PAUSE_AGENTS=true — skipping healthcheck"
+            exit 0
+          fi
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev --all-packages --frozen
+      - run: uv run python -m agents.healthcheck
