@@ -1,0 +1,33 @@
+name: pr-describer
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  fill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check kill-switch
+        env:
+          PAUSE: ${{ vars.PAUSE_AGENTS }}
+        run: |
+          if [ "${PAUSE}" = "true" ]; then
+            echo "PAUSE_AGENTS=true — skipping pr-describer"
+            exit 0
+          fi
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev --all-packages --frozen
+      - run: uv run python -m agents.pr_describer --pr ${{ github.event.pull_request.number }}

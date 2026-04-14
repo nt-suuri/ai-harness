@@ -99,3 +99,9 @@ Requires `ANTHROPIC_API_KEY` secret. Without it, the workflow fails at `run_agen
 ## Stale issue closer (weekly)
 
 `stale.yml` runs Sundays at 10:00 UTC. Closes any open issue with label `autotriage` whose `updated_at` is more than 14 days ago. Adds a comment explaining the close. The triager will reopen automatically if the underlying error recurs (Sentry id-based dedup).
+
+## PR description auto-filler
+
+`pr-describer.yml` runs when a PR is opened (event `pull_request.opened`). If the description is empty or under 60 characters, an agent reads the diff and asks Claude Sonnet 4.6 to write a structured description. Otherwise it's a no-op.
+
+Requires `ANTHROPIC_API_KEY` secret.
