@@ -17,6 +17,7 @@ dependencies = [
     { name = "claude-agent-sdk" },
     { name = "click" },
     { name = "httpx" },
+    { name = "mcp" },
     { name = "pygithub" },
     { name = "pyyaml" },
 ]
@@ -26,6 +27,7 @@ requires-dist = [
     { name = "claude-agent-sdk", specifier = ">=0.1" },
     { name = "click", specifier = ">=8.1" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "mcp", specifier = ">=1.0" },
     { name = "pygithub", specifier = ">=2.4" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]

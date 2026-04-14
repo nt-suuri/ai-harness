@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ai-harness": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "agents.mcp_server"],
+      "cwd": "/Users/nt-suuri/workspace/lab/ai-harness",
+      "env": {
+        "GH_REPO": "nt-suuri/ai-harness"
+      }
+    }
+  }
+}
