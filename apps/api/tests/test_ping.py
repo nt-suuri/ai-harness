@@ -5,6 +5,6 @@ from api.main import app
 
 def test_ping_returns_pong() -> None:
     client = TestClient(app)
-    response = client.get("/ping")
+    response = client.get("/api/ping")
     assert response.status_code == 200
     assert response.json() == {"status": "pong"}
