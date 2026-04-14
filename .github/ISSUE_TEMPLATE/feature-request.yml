@@ -1,0 +1,28 @@
+name: Feature request
+description: Build something new
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why
+      description: Who needs this and what does it unlock?
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What
+      description: One paragraph of the desired behavior. Be concrete.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Implementation notes
+      description: Constraints, patterns to follow, files likely to change
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        Apply the `agent:build` label to have the planner attempt an implementation. Review the PR.

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Master spec
+    url: https://github.com/nt-suuri/ai-harness/blob/main/CLAUDE.md
+    about: Operator runbook + harness rules

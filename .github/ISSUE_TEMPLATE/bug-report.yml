@@ -1,0 +1,36 @@
+name: Bug report
+description: Something is broken in the deployed app or in the agent infra
+labels: ["bug", "needs-triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: One short paragraph. What did you observe?
+      placeholder: "Hit /api/foo, got 500"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      placeholder: "200 with JSON body"
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where (commit SHA, deploy URL, env)
+      placeholder: "ai-harness-production at commit abc1234"
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce (if applicable)
+      render: shell
+      placeholder: |
+        curl https://ai-harness-production.up.railway.app/api/foo
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        Apply the `agent:build` label to have the planner attempt a fix.
