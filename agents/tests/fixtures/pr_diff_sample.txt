@@ -1,0 +1,7 @@
+--- apps/api/src/api/main.py ---
+@@ -1,3 +1,5 @@
+ from fastapi import FastAPI
++
++VERSION = "1.0"
+
+ app = FastAPI(title="ai-harness api")

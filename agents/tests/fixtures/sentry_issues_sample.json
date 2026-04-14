@@ -1,0 +1,20 @@
+[
+  {
+    "id": "sample-1",
+    "title": "ZeroDivisionError: integer division or modulo by zero",
+    "culprit": "apps/api/main.py:42",
+    "count": "12",
+    "permalink": "https://sentry.io/organizations/x/issues/1/",
+    "level": "error",
+    "lastSeen": "2026-04-14T08:00:00Z"
+  },
+  {
+    "id": "sample-2",
+    "title": "ConnectionError: timeout to upstream",
+    "culprit": "apps/api/router.py:88",
+    "count": "3",
+    "permalink": "https://sentry.io/organizations/x/issues/2/",
+    "level": "warning",
+    "lastSeen": "2026-04-14T08:00:00Z"
+  }
+]
