@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
 COPY apps/api/pyproject.toml apps/api/pyproject.toml
 COPY apps/api/src apps/api/src
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --package api
 COPY --from=web-build /repo/apps/web/dist /app/apps/api/src/api/static
 EXPOSE 8080
-CMD ["uv", "run", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["/app/.venv/bin/uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
