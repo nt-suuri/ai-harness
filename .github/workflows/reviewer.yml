@@ -46,7 +46,7 @@ jobs:
         run: echo "num=${{ github.event.pull_request.number || inputs.pr_number }}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ steps.pr.outputs.num }}/head
+          ref: refs/pull/${{ steps.pr.outputs.num }}/merge
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
