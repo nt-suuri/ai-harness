@@ -3,6 +3,11 @@ name: deploy-dev
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/product/**'
+      - 'docs/superpowers/**'
+      - 'RELEASES.md'
+      - '*.md'
   workflow_dispatch:
 
 concurrency:
