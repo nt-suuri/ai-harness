@@ -145,11 +145,12 @@ async def run_agent(
     stopped_reason = "complete"
 
     async with httpx.AsyncClient(timeout=180) as client:
-        for _ in range(max_turns):
+        for turn in range(max_turns):
             body: dict[str, object] = {"model": model, "messages": messages, "max_tokens": 4096}
             if tools:
                 body["tools"] = tools
                 body["tool_choice"] = "auto"
+            print(f"[gh-models] turn {turn + 1}/{max_turns} model={model} messages={len(messages)}", flush=True)
             resp = await _post_with_retry(client, f"{_BASE_URL}/chat/completions", headers, body)
             resp.raise_for_status()
             data = resp.json()
@@ -162,6 +163,7 @@ async def run_agent(
                 collected.append({"type": "text", "text": text})
 
             tool_calls = msg.get("tool_calls") or []
+            print(f"[gh-models] turn {turn + 1} finish={finish} text_len={len(text)} tool_calls={len(tool_calls)}", flush=True)
             if not tool_calls or finish == "stop":
                 break
 
@@ -173,6 +175,7 @@ async def run_agent(
             for call in tool_calls:
                 name = call["function"]["name"]
                 args = call["function"]["arguments"]
+                print(f"[gh-models]   tool {name}({args[:120]}{'...' if len(args) > 120 else ''})", flush=True)
                 result = tool_executors.execute(name, args)
                 if len(result) > _MAX_TOOL_RESULT_CHARS:
                     result = result[:_MAX_TOOL_RESULT_CHARS] + "\n...[truncated]"
