@@ -3,7 +3,10 @@ from pathlib import Path
 
 
 def _run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=120)
+    try:
+        return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr="timed out after 120s")
 
 
 def _ruff(cwd: Path, files: list[str]) -> str | None:
@@ -36,6 +39,10 @@ def _pytest(cwd: Path, test_files: list[str]) -> str | None:
 
 def validate(cwd: Path, changed_files: list[str]) -> list[str]:
     """Return a list of error messages. Empty list = validation passed."""
+    changed_files = [
+        f for f in changed_files
+        if not Path(f).is_absolute() and ".." not in Path(f).parts
+    ]
     errors: list[str] = []
     test_files = [f for f in changed_files if "/tests/" in f and f.endswith(".py")]
 
