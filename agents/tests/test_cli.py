@@ -86,11 +86,14 @@ def test_canary_command_runs() -> None:
 
 def test_harness_entry_point_works() -> None:
     """Verify `harness --help` works after `uv sync` registers the entry point."""
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[2]
     result = subprocess.run(
         ["uv", "run", "harness", "--help"],
         capture_output=True,
         text=True,
-        cwd="/Users/nt-suuri/workspace/lab/ai-harness",
+        cwd=repo_root,
     )
     assert result.returncode == 0
     assert "ai-harness operator CLI" in result.stdout
