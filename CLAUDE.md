@@ -65,6 +65,23 @@ Three improvements cut planner PR bugs:
 2. **Pre-commit validation in `planner.py`** — after the LLM tool loop, run `ruff check` + `python -m compileall` + `pytest` on the changed files. On failure, feed errors back to the LLM for ONE retry. If the retry still fails, post a comment on the issue explaining the failure and skip the PR (no branch pushed).
 3. **`pull_request_target` trigger on CI + reviewer** — bypasses GitHub's cascade protection so planner-opened PRs run the same CI + 3-pass review gates as human-opened ones. **Security caveat:** `pull_request_target` runs with base-branch secrets (e.g. ANTHROPIC_API_KEY for reviewer). Under this trigger, a malicious PR could theoretically modify `uv.lock`/`pnpm-lock.yaml` to pull a poisoned package whose install script runs with those secrets. Acceptable here because the repo is private and only Dependabot (trusted GitHub-managed) + the owner's own agents open PRs. If external contributors are ever enabled, switch to one of: (a) install deps from base SHA then only read source from PR head, (b) use a dedicated bot PAT on the planner so CI still fires on `pull_request` events, or (c) require manual `workflow_dispatch` for review on external PRs. Do NOT merge external PRs without addressing this first.
 
+## Full loop (P70)
+
+After P60 + auto-fix + auto-merge, the chain runs unattended:
+
+1. PM cron fires (06/12/18 UTC) → picks backlog item → opens issue with `agent:build` label
+2. Planner fires on `issues.opened` → writes code → runs `ruff --fix --unsafe-fixes` on touched files → validates (ruff/compile/pytest) → retries once on failure → opens PR → queues `gh pr merge --auto --squash --delete-branch`
+3. CI runs (ruff/mypy/pytest/vitest/playwright/docker) + Reviewer posts 3 commit statuses
+4. All checks green → GitHub auto-merges + deletes the branch
+5. `deploy-prod.yml` fires on push to main → Railway deploys
+6. `rollback-watch` + `release-notes` + `product-analyzer` all cascade on `workflow_run`
+7. Analyzer moves the item to `state.shipped`, opens next PM slot
+8. Next cron tick → loop
+
+Kill-switch for auto-merge: `AUTO_MERGE=false` env var on `planner.yml`, OR manually `gh pr merge <N> --disable-auto` on any specific PR in flight.
+
+Safety net: P60 validation gate runs locally before the PR opens, so broken code never reaches GitHub. If it somehow does, CI catches it (auto-merge waits); if it STILL somehow ships, `rollback-watch` detects post-deploy error spikes and can `git revert` with `AUTO_ROLLBACK=true`.
+
 ## Secrets
 
 Stored as repo secrets:

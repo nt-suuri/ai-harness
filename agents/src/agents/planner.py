@@ -7,6 +7,7 @@ Usage:
 
 import argparse
 import asyncio
+import os
 import re
 import subprocess
 import sys
@@ -105,6 +106,7 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
 
     def _safe_validate() -> list[str]:
         try:
+            planner_validate.ruff_fix(REPO_ROOT, _changed_files(REPO_ROOT))
             return planner_validate.validate(REPO_ROOT, _changed_files(REPO_ROOT))
         except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
             return [f"validation crashed: {type(exc).__name__}: {exc}"]
@@ -160,6 +162,12 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
             ),
         )
         print(f"Opened PR #{pr.number}: {pr.html_url}")
+
+    if os.environ.get("AUTO_MERGE", "true").lower() == "true":
+        subprocess.run(
+            ["gh", "pr", "merge", str(pr.number), "--auto", "--squash", "--delete-branch"],
+            cwd=REPO_ROOT, check=False,
+        )
     return 0
 
 

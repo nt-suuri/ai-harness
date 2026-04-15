@@ -101,3 +101,32 @@ def test_validate_returns_timeout_error_when_subprocess_hangs(tmp_path: Path) ->
     # timeout hits ruff first — we get a ruff-failure error that mentions the timeout
     assert len(errors) >= 1
     assert "timed out" in errors[0].lower() or "ruff" in errors[0].lower()
+
+
+def test_ruff_fix_invokes_ruff_with_fix_flag(tmp_path: Path) -> None:
+    with patch("agents.lib.planner_validate._run") as run:
+        run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        planner_validate.ruff_fix(tmp_path, ["apps/api/src/api/x.py", "readme.md"])
+    assert run.call_count == 1
+    cmd = run.call_args.args[0]
+    assert "ruff" in cmd
+    assert "--fix" in cmd
+    assert "--unsafe-fixes" in cmd
+    assert "apps/api/src/api/x.py" in cmd
+    assert "readme.md" not in cmd  # non-py file filtered
+
+
+def test_ruff_fix_no_op_when_no_py_files(tmp_path: Path) -> None:
+    with patch("agents.lib.planner_validate._run") as run:
+        planner_validate.ruff_fix(tmp_path, ["readme.md", "foo.txt"])
+    run.assert_not_called()
+
+
+def test_ruff_fix_skips_traversal_paths(tmp_path: Path) -> None:
+    with patch("agents.lib.planner_validate._run") as run:
+        run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        planner_validate.ruff_fix(tmp_path, ["/etc/passwd.py", "../evil.py", "apps/api/src/api/ok.py"])
+    cmd = run.call_args.args[0]
+    assert "/etc/passwd.py" not in cmd
+    assert "../evil.py" not in cmd
+    assert "apps/api/src/api/ok.py" in cmd

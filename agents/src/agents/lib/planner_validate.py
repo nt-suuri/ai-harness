@@ -37,6 +37,17 @@ def _pytest(cwd: Path, test_files: list[str]) -> str | None:
     return f"pytest failed:\n{result.stdout.strip()[-2000:]}"
 
 
+def ruff_fix(cwd: Path, changed_files: list[str]) -> None:
+    """Best-effort auto-fix ruff violations in-place. Silent on failure."""
+    py_files = [
+        f for f in changed_files
+        if f.endswith(".py") and not Path(f).is_absolute() and ".." not in Path(f).parts
+    ]
+    if not py_files:
+        return
+    _run(["uv", "run", "ruff", "check", "--fix", "--unsafe-fixes", *py_files], cwd)
+
+
 def validate(cwd: Path, changed_files: list[str]) -> list[str]:
     """Return a list of error messages. Empty list = validation passed."""
     safe_files = [
