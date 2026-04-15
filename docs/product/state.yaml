@@ -1,0 +1,23 @@
+# State maintained by agents/product_analyzer.py and agents/product_manager.py.
+# Humans may edit this file; agents will not overwrite human changes (they append + move entries).
+max_open_agent_issues: 2
+last_pm_run: null
+last_analyzer_run: null
+
+backlog:
+  - id: B001
+    title: "Smoke test /api/hello round-trip in CI"
+    rationale: "Demo feature exists, but no E2E covers it."
+    priority: normal
+    added_by: seed
+  - id: B002
+    title: "Add /api/ping latency histogram to /api/status"
+    rationale: "Dashboard shows CI counts but no runtime perf signal."
+    priority: normal
+    added_by: seed
+
+in_progress: []
+
+shipped: []
+
+rejected: []
