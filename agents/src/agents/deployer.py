@@ -89,7 +89,11 @@ def watch_post_deploy(sha: str, window_minutes: int, *, dry_run: bool) -> int:
         return 1
 
     repo = gh.repo()
-    issue = repo.create_issue(title=title, body=body, labels=[labels.REGRESSION, labels.AUTOTRIAGE])
+    issue = repo.create_issue(
+        title=title,
+        body=body,
+        labels=[labels.REGRESSION, labels.AUTOTRIAGE, labels.AGENT_BUILD],
+    )
     print(f"Opened regression issue #{issue.number}: {issue.html_url}", flush=True)
 
     if os.environ.get("AUTO_ROLLBACK", "").strip().lower() == "true":

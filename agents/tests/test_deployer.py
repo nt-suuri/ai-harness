@@ -1,9 +1,12 @@
+import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from agents import deployer
 from agents.deployer import _detect_spike, watch_post_deploy
+from agents.lib import labels
 
 
 def test_deployer_cli_requires_after_sha() -> None:
@@ -181,3 +184,24 @@ def test_watch_post_deploy_no_auto_revert_when_flag_unset() -> None:
 
     assert rc == 1
     revert.assert_not_called()
+
+
+def test_regression_issue_gets_agent_build_label() -> None:
+    fake_repo = MagicMock()
+    fake_repo.create_issue.return_value = MagicMock(number=99, html_url="u")
+
+    with (
+        patch("agents.deployer.gh.repo", return_value=fake_repo),
+        patch("agents.deployer.sentry.count_events_since", side_effect=[1, 50]),
+        patch("agents.deployer.time.sleep"),
+        patch.dict(os.environ, {
+            "SENTRY_AUTH_TOKEN": "t",
+            "SENTRY_ORG_SLUG": "o",
+            "SENTRY_PROJECT_SLUG": "p",
+        }, clear=True),
+    ):
+        deployer.watch_post_deploy("abc123", 10, dry_run=False)
+
+    applied = fake_repo.create_issue.call_args.kwargs["labels"]
+    assert labels.AGENT_BUILD in applied
+    assert labels.REGRESSION in applied
