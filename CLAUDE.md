@@ -36,6 +36,27 @@ Tool execution is sandboxed — paths are restricted to the checked-out repo; no
 
 If you prefer Anthropic (better quality for complex tasks): `gh secret set ANTHROPIC_API_KEY --body sk-ant-...` and set `HARNESS_BACKEND=anthropic` as a repo var or in the workflow env.
 
+## Autonomous product loop (P50–P52)
+
+Three new moving parts close the full self-directing cycle:
+
+1. **`product-manager.yml`** — cron 06/12/18 UTC + `workflow_dispatch`. Reads `docs/product/vision.md` + `docs/product/state.yaml` + currently-open `agent:build` issues. If vision is empty or >= `max_open_agent_issues` are open, exits with `pm: skipped`. Otherwise picks the top backlog item (or generates a new one), opens a GH issue with `agent:build`, and moves the item to `in_progress` in state.yaml. Commits state.yaml with `[skip ci]`.
+2. **`product-analyzer.yml`** — triggered by `workflow_run: release-notes`. Reads the last 50 merged commits + vision + state. Moves items from `in_progress` → `shipped` when a matching commit is found; appends up to 3 new backlog items (LLM-proposed) grounded in vision. Commits state.yaml with `[skip ci]`.
+3. **Triager + deployer auto-label** — issues created by `triager.py` (severity ≥ important) and all regression issues from `deployer.py` now include `agent:build`, so the planner fires without human intervention.
+
+### Seeding the loop
+
+1. Edit `docs/product/vision.md` once — fill in "What are we building?" and "Out of scope". The PM agent refuses to act on an empty vision.
+2. Optionally seed `docs/product/state.yaml` with 2–3 backlog items you want built first. If unset, the PM agent will propose its own.
+3. `gh workflow run product-manager.yml` to run it immediately (otherwise it fires at 06/12/18 UTC daily).
+
+### Guardrails in place
+
+- `max_open_agent_issues` in state.yaml throttles the PM (default 2) so planner never stacks more than N PRs.
+- `deploy-prod.yml` has `paths-ignore: [docs/product/**, docs/superpowers/**, RELEASES.md, *.md]` — markdown-only commits don't deploy.
+- Both PM and Analyzer commits use `[skip ci]` as belt-and-suspenders.
+- Kill switch: `gh variable set PAUSE_AGENTS --body true` halts all autonomous workflows.
+
 ## Secrets
 
 Stored as repo secrets:
