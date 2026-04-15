@@ -16,7 +16,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - name: Check kill-switch
         env:
@@ -26,10 +26,10 @@ jobs:
             echo "PAUSE_AGENTS=true — skipping deploy-dev"
             exit 0
           fi
-      - name: Skip if RAILWAY_DEV_TOKEN not set
+      - name: Skip if RAILWAY_TOKEN not set
         run: |
-          if [ -z "${{ secrets.RAILWAY_DEV_TOKEN }}" ]; then
-            echo "RAILWAY_DEV_TOKEN secret not set — skipping dev deploy (run 'gh secret set RAILWAY_DEV_TOKEN --body <token>')"
+          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "RAILWAY_TOKEN secret not set — skipping dev deploy (run 'gh secret set RAILWAY_TOKEN --body <token>')"
             exit 0
           fi
       - uses: actions/checkout@v4
@@ -38,4 +38,4 @@ jobs:
       - name: Deploy to dev
         run: railway up --service ${{ vars.RAILWAY_DEV_SERVICE || 'ai-harness-dev' }} --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
