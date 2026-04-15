@@ -1,0 +1,29 @@
+name: pr-rebase-check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  rebase-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check if PR is behind main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr="${{ github.event.pull_request.number }}"
+          base="${{ github.event.pull_request.base.sha }}"
+          remote_base=$(gh api repos/${{ github.repository }}/branches/main --jq .commit.sha)
+          if [ "$base" != "$remote_base" ]; then
+            echo "PR base $base is behind main $remote_base."
+            echo "Rebase: git fetch origin main && git rebase origin/main && git push --force-with-lease"
+            gh pr comment "$pr" --body "🚫 PR is behind \`main\`. Rebase before merge: \`git fetch origin main && git rebase origin/main && git push --force-with-lease\`"
+            exit 1
+          fi
+          echo "PR is up-to-date with main."
