@@ -112,3 +112,84 @@ async def test_dry_run_does_not_open_issue(tmp_path: Path) -> None:
     fake_repo.create_issue.assert_not_called()
     updated_state = product_state.load(state_path)
     assert len(updated_state.backlog) == 1  # unchanged
+
+
+@pytest.mark.asyncio
+async def test_generate_new_backlog_item_when_backlog_exhausted(tmp_path: Path) -> None:
+    state = product_state.State(
+        max_open_agent_issues=2,
+        last_pm_run=None,
+        last_analyzer_run=None,
+        backlog=[],
+        in_progress=[],
+        shipped=[],
+        rejected=[],
+    )
+    state_path = tmp_path / "state.yaml"
+    product_state.save(state_path, state)
+    vision_path = _seed_vision(tmp_path)
+
+    fake_repo = MagicMock()
+    fake_repo.get_issues.return_value = []
+    created_issue = MagicMock(number=88, html_url="u")
+    fake_repo.create_issue.return_value = created_issue
+
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": "DECISION: GENERATE\nTITLE: Shiny new feature\nBODY:\nBuild it.\nRefs: x",
+    }]))
+
+    with (
+        patch("agents.product_manager.gh.repo", return_value=fake_repo),
+        patch("agents.product_manager.run_agent", fake_llm),
+    ):
+        result = await product_manager.run(state_path, vision_path, dry_run=False)
+
+    assert result == "generated"
+    fake_repo.create_issue.assert_called_once()
+    updated = product_state.load(state_path)
+    assert len(updated.in_progress) == 1
+    assert updated.in_progress[0].title == "Shiny new feature"
+    assert updated.in_progress[0].issue_number == 88
+
+
+@pytest.mark.asyncio
+async def test_malformed_llm_response_raises(tmp_path: Path) -> None:
+    state_path = _seed_state(tmp_path)
+    vision_path = _seed_vision(tmp_path)
+    fake_repo = MagicMock()
+    fake_repo.get_issues.return_value = []
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": "I think we should build a dashboard widget.",
+    }]))
+
+    with (
+        patch("agents.product_manager.gh.repo", return_value=fake_repo),
+        patch("agents.product_manager.run_agent", fake_llm),
+    ):
+        with pytest.raises(ValueError, match="Unrecognised PM decision"):
+            await product_manager.run(state_path, vision_path, dry_run=False)
+
+    fake_repo.create_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_pick_with_bogus_id_raises_before_issue_creation(tmp_path: Path) -> None:
+    state_path = _seed_state(tmp_path)
+    vision_path = _seed_vision(tmp_path)
+    fake_repo = MagicMock()
+    fake_repo.get_issues.return_value = []
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": "DECISION: PICK\nID: B999\nTITLE: hallucinated\nBODY:\nbody\nRefs: x",
+    }]))
+
+    with (
+        patch("agents.product_manager.gh.repo", return_value=fake_repo),
+        patch("agents.product_manager.run_agent", fake_llm),
+    ):
+        with pytest.raises(ValueError, match="not in backlog"):
+            await product_manager.run(state_path, vision_path, dry_run=False)
+
+    fake_repo.create_issue.assert_not_called()

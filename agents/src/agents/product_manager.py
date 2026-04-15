@@ -16,7 +16,7 @@ _DEFAULT_VISION = Path("docs/product/vision.md")
 
 def _vision_text(path: Path) -> str:
     text = path.read_text() if path.exists() else ""
-    body = re.sub(r"^#.*$", "", text, flags=re.MULTILINE).strip()
+    body = re.sub(r"^# .+$", "", text, flags=re.MULTILINE).strip()
     return body
 
 
@@ -48,6 +48,13 @@ async def run(state_path: Path, vision_path: Path, *, dry_run: bool) -> str:
 
     if decision["kind"] == "SKIP":
         return "skipped"
+
+    if decision["kind"] == "PICK":
+        if not any(b.id == decision["id"] for b in state.backlog):
+            raise ValueError(
+                f"PM picked ID {decision['id']!r} not in backlog. "
+                f"Available: {[b.id for b in state.backlog]}"
+            )
 
     if not dry_run:
         body = decision["body"] + f"\n\n_Opened autonomously by Product Manager agent at {datetime.now(UTC).isoformat()}._"
@@ -88,7 +95,12 @@ def _parse_decision(text: str) -> dict[str, str]:
     if first.startswith("DECISION: SKIP"):
         return {"kind": "SKIP", "id": "", "title": "", "body": ""}
 
-    kind = "PICK" if "DECISION: PICK" in first else "GENERATE"
+    if "DECISION: PICK" in first:
+        kind = "PICK"
+    elif "DECISION: GENERATE" in first:
+        kind = "GENERATE"
+    else:
+        raise ValueError(f"Unrecognised PM decision line: {first!r}")
     id_match = re.search(r"^ID:\s*(\S+)", text, flags=re.MULTILINE)
     title_match = re.search(r"^TITLE:\s*(.+)$", text, flags=re.MULTILINE)
     body_match = re.search(r"^BODY:\s*\n(.+)", text, flags=re.DOTALL | re.MULTILINE)
