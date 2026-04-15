@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
@@ -34,6 +34,12 @@ app.include_router(status_router)
 app.include_router(version_router)
 app.include_router(agents_router)
 app.include_router(flags_router)
+
+
+@app.get("/api/echo")
+@limiter.limit("120/minute")
+def echo(request: Request, msg: str) -> dict[str, str]:
+    return {"message": msg}
 
 
 @app.get("/api/ping")
