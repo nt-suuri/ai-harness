@@ -13,6 +13,7 @@ from api.sentry import init_sentry
 from api.status import router as status_router
 from api.time import router as time_router
 from api.version import router as version_router
+from api.whoami import router as whoami_router
 
 init_sentry()
 
@@ -37,6 +38,7 @@ app.include_router(version_router)
 app.include_router(agents_router)
 app.include_router(flags_router)
 app.include_router(time_router)
+app.include_router(whoami_router)
 
 
 @app.get("/api/ping")
