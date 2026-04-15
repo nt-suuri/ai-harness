@@ -7,12 +7,6 @@ from agents.lib import github_models
 
 
 @pytest.mark.asyncio
-async def test_raises_when_tools_requested() -> None:
-    with pytest.raises(NotImplementedError, match="tools"):
-        await github_models.run_agent("x", system="y", allowed_tools=["Read"])
-
-
-@pytest.mark.asyncio
 async def test_calls_gh_models_endpoint() -> None:
     fake_resp = MagicMock(status_code=200)
     fake_resp.json = MagicMock(return_value={

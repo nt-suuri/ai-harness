@@ -28,16 +28,13 @@ If planner makes no changes, it posts its plan summary as an issue comment inste
 
 Kill-switch: `PAUSE_AGENTS=true` halts planner workflows.
 
-### Why planner needs Anthropic specifically (not GH Models)
+### Planner backend
 
-Unlike the reviewer (which is text-in, text-out and works on GH Models free tier), the planner uses the Claude Agent SDK's filesystem tools (`Read`, `Write`, `Edit`, `Glob`, `Grep`) to actually modify files and open PRs. GitHub Models' OpenAI-compatible chat endpoint does not expose those tools.
+The planner now runs on GitHub Models free tier by default (`HARNESS_BACKEND=github_models`). It uses a minimal tool-use loop implemented in `agents/src/agents/lib/github_models.py` that maps OpenAI tool calls to local file operations (Read/Write/Edit/Glob/Grep).
 
-Until GH Models supports tool use or you add an Anthropic API key:
-- `agent:build` label will fire `planner.yml`, which will fail at the SDK call with a missing-key error
-- To disable to avoid confusion: `gh workflow disable planner.yml --repo nt-suuri/ai-harness`
-- To enable once you have a key: `gh secret set ANTHROPIC_API_KEY --repo nt-suuri/ai-harness --body "sk-ant-..."`
+Tool execution is sandboxed — paths are restricted to the checked-out repo; no Bash, no network, no arbitrary Python. Watch for the `models:read` permission in `planner.yml`.
 
-All other LLM agents (reviewer, triager, healthcheck, release-notes, pr-describer, issue-labeler) run on GH Models and need no key.
+If you prefer Anthropic (better quality for complex tasks): `gh secret set ANTHROPIC_API_KEY --body sk-ant-...` and set `HARNESS_BACKEND=anthropic` as a repo var or in the workflow env.
 
 ## Secrets
 
