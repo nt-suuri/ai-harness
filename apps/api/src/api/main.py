@@ -11,6 +11,7 @@ from api.flags import router as flags_router
 from api.security import BasicAuthMiddleware, SecurityHeadersMiddleware, cors_origins, limiter
 from api.sentry import init_sentry
 from api.status import router as status_router
+from api.time import router as time_router
 from api.version import router as version_router
 
 init_sentry()
@@ -35,6 +36,7 @@ app.include_router(status_router)
 app.include_router(version_router)
 app.include_router(agents_router)
 app.include_router(flags_router)
+app.include_router(time_router)
 
 
 @app.get("/api/ping")
