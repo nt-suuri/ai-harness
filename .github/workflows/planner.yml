@@ -3,6 +3,12 @@ name: planner
 on:
   issues:
     types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to plan"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -12,7 +18,7 @@ permissions:
 
 jobs:
   plan:
-    if: github.event.label.name == 'agent:build'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent:build'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -20,6 +26,7 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
     steps:
       - name: Check kill-switch
         env:
@@ -43,4 +50,4 @@ jobs:
           enable-cache: true
       - run: uv sync --group dev --all-packages --frozen
       - name: Plan and open PR
-        run: uv run python -m agents.planner --issue ${{ github.event.issue.number }}
+        run: uv run python -m agents.planner --issue "$ISSUE_NUMBER"
