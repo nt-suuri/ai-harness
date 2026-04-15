@@ -1,3 +1,5 @@
+import base64
+import hmac
 import os
 import time
 from typing import Annotated
@@ -11,6 +13,8 @@ from starlette.responses import Response
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
+_BASIC_AUTH_EXEMPT_PATHS = {"/api/ping", "/api/flags"}
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -21,6 +25,41 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Permissions-Policy"] = "interest-cohort=()"
         return response
+
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    """HTTP Basic Auth gate. Disabled when DASHBOARD_USER/DASHBOARD_PASSWORD are unset."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        user = os.environ.get("DASHBOARD_USER", "").strip()
+        password = os.environ.get("DASHBOARD_PASSWORD", "").strip()
+        if not user or not password:
+            return await call_next(request)
+        if request.url.path in _BASIC_AUTH_EXEMPT_PATHS:
+            return await call_next(request)
+
+        header = request.headers.get("authorization", "")
+        if not header.lower().startswith("basic "):
+            return _unauthorized()
+        try:
+            decoded = base64.b64decode(header.split(" ", 1)[1]).decode("utf-8")
+            provided_user, _, provided_pw = decoded.partition(":")
+        except (ValueError, UnicodeDecodeError):
+            return _unauthorized()
+        if not (
+            hmac.compare_digest(provided_user, user)
+            and hmac.compare_digest(provided_pw, password)
+        ):
+            return _unauthorized()
+        return await call_next(request)
+
+
+def _unauthorized() -> Response:
+    return Response(
+        status_code=401,
+        content="Authentication required",
+        headers={"WWW-Authenticate": 'Basic realm="ai-harness"'},
+    )
 
 
 def require_token(authorization: Annotated[str | None, Header()] = None) -> None:

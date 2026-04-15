@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 
 from api.agents import router as agents_router
 from api.flags import router as flags_router
-from api.security import SecurityHeadersMiddleware, cors_origins, limiter
+from api.security import BasicAuthMiddleware, SecurityHeadersMiddleware, cors_origins, limiter
 from api.sentry import init_sentry
 from api.status import router as status_router
 from api.version import router as version_router
@@ -19,6 +19,7 @@ app = FastAPI(title="ai-harness api")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(BasicAuthMiddleware)
 
 origins = cors_origins()
 if origins:

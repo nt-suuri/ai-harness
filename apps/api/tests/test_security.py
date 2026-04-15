@@ -84,6 +84,47 @@ def test_status_requires_token_when_set() -> None:
     assert resp.status_code == 401
 
 
+def _basic(user: str, pw: str) -> str:
+    import base64
+    return "Basic " + base64.b64encode(f"{user}:{pw}".encode()).decode()
+
+
+def test_basic_auth_disabled_by_default() -> None:
+    with patch.dict(os.environ, {}, clear=True):
+        client = TestClient(app)
+        resp = client.get("/api/ping")
+    assert resp.status_code == 200
+
+
+def test_basic_auth_blocks_root_when_enabled() -> None:
+    with patch.dict(os.environ, {"DASHBOARD_USER": "admin", "DASHBOARD_PASSWORD": "pw"}, clear=True):
+        client = TestClient(app)
+        resp = client.get("/")
+    assert resp.status_code == 401
+    assert resp.headers["www-authenticate"].startswith("Basic")
+
+
+def test_basic_auth_accepts_valid_credentials() -> None:
+    with patch.dict(os.environ, {"DASHBOARD_USER": "admin", "DASHBOARD_PASSWORD": "pw"}, clear=True):
+        client = TestClient(app)
+        resp = client.get("/api/ping", headers={"Authorization": _basic("admin", "pw")})
+    assert resp.status_code == 200
+
+
+def test_basic_auth_rejects_wrong_password() -> None:
+    with patch.dict(os.environ, {"DASHBOARD_USER": "admin", "DASHBOARD_PASSWORD": "pw"}, clear=True):
+        client = TestClient(app)
+        resp = client.get("/", headers={"Authorization": _basic("admin", "nope")})
+    assert resp.status_code == 401
+
+
+def test_basic_auth_exempts_ping_for_healthchecks() -> None:
+    with patch.dict(os.environ, {"DASHBOARD_USER": "admin", "DASHBOARD_PASSWORD": "pw"}, clear=True):
+        client = TestClient(app)
+        resp = client.get("/api/ping")
+    assert resp.status_code == 200
+
+
 def test_status_accepts_correct_token() -> None:
     _cache._store.clear()
     fake_repo = MagicMock()
