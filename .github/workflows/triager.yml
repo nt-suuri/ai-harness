@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   issues: write
+  models: read
 
 jobs:
   triage:
@@ -19,6 +20,7 @@ jobs:
       SENTRY_PROJECT_SLUG: ${{ vars.SENTRY_PROJECT_SLUG }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
+      HARNESS_BACKEND: ${{ vars.HARNESS_BACKEND }}
     steps:
       - name: Check kill-switch
         env:

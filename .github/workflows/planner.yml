@@ -8,6 +8,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  models: read
 
 jobs:
   plan:
@@ -15,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      # Planner uses Read/Write/Edit tools; GH Models backend doesn't support tools yet.
+      # Keep this workflow on Anthropic — requires ANTHROPIC_API_KEY to be set.
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}

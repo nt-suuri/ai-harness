@@ -150,3 +150,12 @@ Set the same env on Railway / GH Actions secrets to use GH Models in production.
 **Limitation:** GH Models backend does NOT support tools (Read/Write/Edit/Glob/Grep). The planner agent (which writes code) will raise NotImplementedError under this backend. All other agents (reviewer, triager, healthcheck, release-notes, pr-describer, issue-labeler) work fine — they're text-in, text-out.
 
 GH Models free-tier rate limits: ~50 premium-model requests/day; faster for non-premium. Sufficient for a solo lab.
+
+## Activation state (2026-04-14)
+
+- **Live via GitHub Models free tier:** reviewer, release-notes, triager, healthcheck, pr-describer, issue-labeler
+  - Each workflow has `models: read` permission + `HARNESS_BACKEND=github_models` env
+  - Uses the built-in `GITHUB_TOKEN` — no PAT needed
+  - Rate limits: ~50 premium-model requests/day (GH Models free tier)
+- **Anthropic-required (awaiting `ANTHROPIC_API_KEY` secret):** planner
+  - The planner uses Read/Write/Edit filesystem tools; GH Models doesn't expose those yet
