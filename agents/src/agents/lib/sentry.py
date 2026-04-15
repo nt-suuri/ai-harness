@@ -6,13 +6,20 @@ from typing import Any, cast
 
 import httpx
 
-_BASE_URL = "https://sentry.io/api/0"
+
+def _base_url() -> str:
+    """Region-aware Sentry REST API base. Default US (`sentry.io`); set
+    `SENTRY_REGION=de` for EU-residency accounts (`de.sentry.io`).
+    """
+    region = os.environ.get("SENTRY_REGION", "").strip().lower()
+    host = f"{region}.sentry.io" if region else "sentry.io"
+    return f"https://{host}/api/0"
 
 
 def _client() -> httpx.Client:
     token = os.environ["SENTRY_AUTH_TOKEN"]
     return httpx.Client(
-        base_url=_BASE_URL,
+        base_url=_base_url(),
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )

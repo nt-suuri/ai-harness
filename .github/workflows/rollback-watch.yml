@@ -18,6 +18,7 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
       SENTRY_PROJECT_SLUG: ${{ vars.SENTRY_PROJECT_SLUG }}
+      SENTRY_REGION: ${{ vars.SENTRY_REGION }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
     steps:

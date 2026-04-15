@@ -24,6 +24,30 @@ def test_client_sets_bearer_header() -> None:
         assert call_kwargs["timeout"] == 30
 
 
+def test_base_url_uses_region_when_set() -> None:
+    with patch.dict(os.environ, {"SENTRY_REGION": "de"}, clear=True):
+        assert sentry._base_url() == "https://de.sentry.io/api/0"
+
+
+def test_base_url_defaults_when_region_unset() -> None:
+    with patch.dict(os.environ, {}, clear=True):
+        assert sentry._base_url() == "https://sentry.io/api/0"
+
+
+def test_base_url_strips_and_lowercases_region() -> None:
+    with patch.dict(os.environ, {"SENTRY_REGION": "  US  "}, clear=True):
+        assert sentry._base_url() == "https://us.sentry.io/api/0"
+
+
+def test_client_uses_regional_base_url() -> None:
+    with (
+        patch.dict(os.environ, {"SENTRY_AUTH_TOKEN": "abc", "SENTRY_REGION": "de"}, clear=True),
+        patch("agents.lib.sentry.httpx.Client") as client_cls,
+    ):
+        sentry._client()
+        assert client_cls.call_args.kwargs["base_url"] == "https://de.sentry.io/api/0"
+
+
 def test_list_events_default_since_is_24h_ago() -> None:
     fake_client = MagicMock()
     fake_client.__enter__.return_value = fake_client

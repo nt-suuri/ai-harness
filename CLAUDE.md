@@ -69,6 +69,7 @@ After every deploy, `rollback-watch.yml` fires. It waits 10 min, queries Sentry 
 Triggers:
 - `SENTRY_AUTH_TOKEN` secret — required for Sentry API
 - `SENTRY_ORG_SLUG` / `SENTRY_PROJECT_SLUG` repo variables
+- `SENTRY_REGION` repo variable — set to `de` for EU-residency Sentry accounts (API base becomes `https://de.sentry.io/api/0`). Leave unset for US default.
 
 When unset, the watcher exits 0 silently (no false alerts before Sentry is wired).
 
