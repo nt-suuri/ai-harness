@@ -2,7 +2,7 @@ name: planner
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled, reopened]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -18,7 +18,11 @@ permissions:
 
 jobs:
   plan:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent:build'
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'agent:build')
+      || (github.event_name == 'issues' && github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'agent:build'))
+      || (github.event_name == 'issues' && github.event.action == 'reopened' && contains(github.event.issue.labels.*.name, 'agent:build'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
