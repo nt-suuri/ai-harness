@@ -17,7 +17,7 @@ from typing import Any
 from agents.lib import gh, kill_switch, planner_validate, prompts, skills
 from agents.lib.anthropic import run_agent
 
-_MAX_TURNS = 80
+_MAX_TURNS = 50
 _ALLOWED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep"]
 _SLUG_MAX = 40
 

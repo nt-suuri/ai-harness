@@ -24,7 +24,7 @@ jobs:
       || (github.event_name == 'issues' && github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'agent:build'))
       || (github.event_name == 'issues' && github.event.action == 'reopened' && contains(github.event.issue.labels.*.name, 'agent:build'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       HARNESS_BACKEND: ${{ vars.HARNESS_BACKEND }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
