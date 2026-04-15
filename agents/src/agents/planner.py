@@ -35,7 +35,9 @@ def _branch_name(issue_number: int, title: str) -> str:
 
 
 def _run_git(*args: str) -> str:
-    result = subprocess.run(["git", *args], capture_output=True, text=True, check=True)
+    result = subprocess.run(["git", *args], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"git {args[0]} failed: {result.stderr.strip()}")
     return result.stdout.strip()
 
 
@@ -89,18 +91,24 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
     _run_git("checkout", "-b", branch)
     _run_git("add", "-A")
     _run_git("commit", "-m", f"feat: {issue.title}\n\nCloses #{issue_number}")
-    _run_git("push", "-u", "origin", branch)
+    _run_git("push", "--force-with-lease", "-u", "origin", branch)
 
-    pr = repo.create_pull(
-        base="main",
-        head=branch,
-        title=f"feat: {issue.title}",
-        body=(
-            f"Closes #{issue_number}\n\n"
-            f"**Plan summary (by planner agent):**\n\n{plan_summary}"
-        ),
-    )
-    print(f"Opened PR #{pr.number}: {pr.html_url}")
+    existing = list(repo.get_pulls(state="open", head=f"{repo.owner.login}:{branch}"))
+    if existing:
+        pr = existing[0]
+        pr.edit(body=f"Closes #{issue_number}\n\n**Plan summary (by planner agent):**\n\n{plan_summary}")
+        print(f"Updated existing PR #{pr.number}: {pr.html_url}")
+    else:
+        pr = repo.create_pull(
+            base="main",
+            head=branch,
+            title=f"feat: {issue.title}",
+            body=(
+                f"Closes #{issue_number}\n\n"
+                f"**Plan summary (by planner agent):**\n\n{plan_summary}"
+            ),
+        )
+        print(f"Opened PR #{pr.number}: {pr.html_url}")
     return 0
 
 
