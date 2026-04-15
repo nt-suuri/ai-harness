@@ -6,23 +6,38 @@
 - Global user rules still apply outside this repo.
 - Kill-switch: set repo variable `PAUSE_AGENTS=true` to halt every workflow.
 
-## Branch protection (must be configured on GitHub)
+## Branch protection — DISABLED (private repo on free plan)
 
-- `main` is protected.
-- Required checks: `ci / python`, `ci / web`, `ci / e2e`, `ci / docker`, `reviewer / review (quality)`, `reviewer / review (security)`, `reviewer / review (deps)`.
-- Require 1 human approval. No force-push. No direct push to `main`.
+Branch protection requires GitHub Pro ($4/mo) for private repos. The repo was switched to private 2026-04-14; protection is silently off. Direct pushes to `main` still work. Relevant implications:
 
-## Feature intake: `agent:build` label
+- **CI + reviewer still run** on PRs; their success/failure is visible in the PR UI but not enforced.
+- **Risk:** anyone with write access can push broken code to `main`. For a solo lab this is fine.
+- **To re-enable:** pay for GH Pro or switch repo back to public.
+
+Previously-listed required checks (for documentation when you upgrade): `ci / python`, `ci / web`, `ci / e2e`, `ci / docker`, `reviewer / review (quality)`, `reviewer / review (security)`, `reviewer / review (deps)`.
+
+## Feature intake: `agent:build` label — **REQUIRES ANTHROPIC_API_KEY**
 
 - Open a GitHub issue describing what you want.
 - Apply the `agent:build` label.
-- `planner.yml` fires → `agents/planner.py` runs Opus 4.6 with filesystem tools.
+- `planner.yml` fires → `agents/planner.py` runs Claude Opus with `Read`/`Write`/`Edit` filesystem tools.
 - Planner opens a PR on a `feat/<issue>-<slug>` branch, referencing the issue.
 - PR goes through CI + 3-pass reviewer + 1 human approval, then merges.
 
 If planner makes no changes, it posts its plan summary as an issue comment instead.
 
 Kill-switch: `PAUSE_AGENTS=true` halts planner workflows.
+
+### Why planner needs Anthropic specifically (not GH Models)
+
+Unlike the reviewer (which is text-in, text-out and works on GH Models free tier), the planner uses the Claude Agent SDK's filesystem tools (`Read`, `Write`, `Edit`, `Glob`, `Grep`) to actually modify files and open PRs. GitHub Models' OpenAI-compatible chat endpoint does not expose those tools.
+
+Until GH Models supports tool use or you add an Anthropic API key:
+- `agent:build` label will fire `planner.yml`, which will fail at the SDK call with a missing-key error
+- To disable to avoid confusion: `gh workflow disable planner.yml --repo nt-suuri/ai-harness`
+- To enable once you have a key: `gh secret set ANTHROPIC_API_KEY --repo nt-suuri/ai-harness --body "sk-ant-..."`
+
+All other LLM agents (reviewer, triager, healthcheck, release-notes, pr-describer, issue-labeler) run on GH Models and need no key.
 
 ## Secrets
 
