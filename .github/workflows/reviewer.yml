@@ -3,9 +3,15 @@ name: reviewer
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
 
 concurrency:
-  group: reviewer-${{ github.event.pull_request.number }}
+  group: reviewer-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 permissions:
@@ -35,9 +41,14 @@ jobs:
             echo "PAUSE_AGENTS=true — skipping reviewer"
             exit 0
           fi
+      - name: Resolve PR number
+        id: pr
+        run: echo "num=${{ github.event.pull_request.number || inputs.pr_number }}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ steps.pr.outputs.num }}/head
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
       - run: uv sync --group dev --all-packages --frozen
-      - run: uv run python -m agents.reviewer --pass ${{ matrix.pass }} --pr ${{ github.event.pull_request.number }}
+      - run: uv run python -m agents.reviewer --pass ${{ matrix.pass }} --pr ${{ steps.pr.outputs.num }}
