@@ -19,6 +19,8 @@ _AGENTS = [
     {"name": "stale", "purpose": "Close inactive autotriage issues", "trigger": "schedule (0 10 * * 0)", "module": "agents.stale", "workflow_file": "stale.yml"},
     {"name": "release_notes", "purpose": "Auto CHANGELOG + GH Release", "trigger": "workflow_run (deploy)", "module": "agents.release_notes", "workflow_file": "release-notes.yml"},
     {"name": "canary", "purpose": "Weekly fixture replay", "trigger": "schedule (0 7 * * 0)", "module": "agents.canary", "workflow_file": "canary-replay.yml"},
+    {"name": "pr_describer", "purpose": "Fill empty PR descriptions", "trigger": "pull_request.opened", "module": "agents.pr_describer", "workflow_file": "pr-describer.yml"},
+    {"name": "issue_labeler", "purpose": "Auto-label new issues", "trigger": "issues.opened", "module": "agents.issue_labeler", "workflow_file": "issue-labeler.yml"},
 ]
 
 _DEFAULT_REPO = "nt-suuri/ai-harness"

@@ -29,7 +29,7 @@ def test_agents_includes_known_names() -> None:
     client = TestClient(app)
     data = client.get("/api/agents").json()
     names = {a["name"] for a in data["agents"]}
-    expected = {"reviewer", "planner", "deployer", "triager", "healthcheck", "stale", "release_notes", "canary"}
+    expected = {"reviewer", "planner", "deployer", "triager", "healthcheck", "stale", "release_notes", "canary", "pr_describer", "issue_labeler"}
     assert expected.issubset(names)
 
 
