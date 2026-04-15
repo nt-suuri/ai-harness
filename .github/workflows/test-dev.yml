@@ -1,0 +1,50 @@
+name: test-dev
+
+on:
+  workflow_run:
+    workflows: [deploy-dev]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check kill-switch
+        env:
+          PAUSE: ${{ vars.PAUSE_AGENTS }}
+        run: |
+          if [ "${PAUSE}" = "true" ]; then
+            echo "PAUSE_AGENTS=true — skipping test-dev"
+            exit 0
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Wait for dev to be reachable
+        run: |
+          URL="${{ vars.DEV_URL || 'https://ai-harness-dev-production.up.railway.app' }}"
+          for i in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -m 5 -w "%{http_code}" "$URL/api/ping" || echo "000")
+            echo "attempt $i: $URL/api/ping -> $code"
+            if [ "$code" = "200" ]; then
+              echo "Dev is up"
+              break
+            fi
+            sleep 10
+          done
+      - name: Playwright smoke against dev
+        env:
+          E2E_BASE_URL: ${{ vars.DEV_URL || 'https://ai-harness-dev-production.up.railway.app' }}
+        run: pnpm --filter web e2e

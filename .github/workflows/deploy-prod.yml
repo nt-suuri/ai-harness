@@ -1,12 +1,13 @@
-name: deploy
+name: deploy-prod
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [test-dev]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
-  group: deploy
+  group: deploy-prod
   cancel-in-progress: false
 
 permissions:
@@ -14,20 +15,24 @@ permissions:
 
 jobs:
   deploy:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - name: Check kill-switch
         env:
           PAUSE: ${{ vars.PAUSE_AGENTS }}
         run: |
           if [ "${PAUSE}" = "true" ]; then
-            echo "PAUSE_AGENTS=true — skipping deploy"
+            echo "PAUSE_AGENTS=true — skipping deploy-prod"
             exit 0
           fi
       - uses: actions/checkout@v4
       - name: Install Railway CLI
         run: npm i -g @railway/cli@latest
-      - name: Deploy
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Deploy to prod
         run: railway up --service ${{ vars.RAILWAY_SERVICE || 'ai-harness' }} --detach

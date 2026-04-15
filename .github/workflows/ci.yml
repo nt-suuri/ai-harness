@@ -74,3 +74,34 @@ jobs:
           tags: ai-harness:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  env-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Check Python / Node / dep parity
+        run: |
+          python -c "
+          import tomllib
+          from pathlib import Path
+
+          root = tomllib.loads(Path('pyproject.toml').read_text())
+          api = tomllib.loads(Path('apps/api/pyproject.toml').read_text())
+          agents = tomllib.loads(Path('agents/pyproject.toml').read_text())
+
+          py_versions = {
+              'root': root['project'].get('requires-python'),
+              'api': api['project'].get('requires-python'),
+              'agents': agents['project'].get('requires-python'),
+          }
+          unique_py = set(v for v in py_versions.values() if v is not None)
+          if len(unique_py) > 1:
+              raise SystemExit(f'Python version mismatch: {py_versions}')
+          print(f'Python parity OK: {py_versions}')
+
+          nvmrc = Path('.nvmrc').read_text().strip()
+          if nvmrc not in ('22', 'v22'):
+              raise SystemExit(f'.nvmrc says {nvmrc!r}, CI uses node 22')
+          print(f'Node parity OK: .nvmrc={nvmrc!r}')
+          "

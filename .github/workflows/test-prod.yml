@@ -1,0 +1,31 @@
+name: test-prod
+
+on:
+  workflow_run:
+    workflows: [deploy-prod]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Quick prod smoke
+        run: |
+          URL="${{ vars.PROD_URL || 'https://ai-harness-production.up.railway.app' }}"
+          for i in $(seq 1 20); do
+            code=$(curl -sS -o /dev/null -m 5 -w "%{http_code}" "$URL/api/ping" || echo "000")
+            echo "attempt $i: $URL/api/ping -> $code"
+            if [ "$code" = "200" ]; then
+              echo "Prod smoke passed"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Prod smoke FAILED — /api/ping never returned 200"
+          exit 1

@@ -1,0 +1,41 @@
+name: deploy-dev
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}
+    steps:
+      - name: Check kill-switch
+        env:
+          PAUSE: ${{ vars.PAUSE_AGENTS }}
+        run: |
+          if [ "${PAUSE}" = "true" ]; then
+            echo "PAUSE_AGENTS=true — skipping deploy-dev"
+            exit 0
+          fi
+      - name: Skip if RAILWAY_DEV_TOKEN not set
+        run: |
+          if [ -z "${{ secrets.RAILWAY_DEV_TOKEN }}" ]; then
+            echo "RAILWAY_DEV_TOKEN secret not set — skipping dev deploy (run 'gh secret set RAILWAY_DEV_TOKEN --body <token>')"
+            exit 0
+          fi
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli@latest
+      - name: Deploy to dev
+        run: railway up --service ${{ vars.RAILWAY_DEV_SERVICE || 'ai-harness-dev' }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEV_TOKEN }}

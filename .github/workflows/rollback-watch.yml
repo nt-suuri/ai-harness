@@ -2,7 +2,7 @@ name: rollback-watch
 
 on:
   workflow_run:
-    workflows: [deploy]
+    workflows: [deploy-prod]
     types: [completed]
 
 permissions:
