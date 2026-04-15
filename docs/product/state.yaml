@@ -1,13 +1,7 @@
 max_open_agent_issues: 2
-last_pm_run: '2026-04-15T09:56:48.378527+00:00'
+last_pm_run: '2026-04-15T11:38:57.331454+00:00'
 last_analyzer_run: null
-backlog:
-- id: B002
-  title: Add /api/ping latency histogram to /api/status
-  priority: normal
-  rationale: Dashboard shows CI counts but no runtime perf signal.
-  added_by: seed
-  issue_number: null
+backlog: []
 in_progress:
 - id: B001
   title: Smoke test /api/hello round-trip in CI
@@ -15,5 +9,11 @@ in_progress:
   rationale: Demo feature exists, but no E2E covers it.
   added_by: seed
   issue_number: 16
+- id: B002
+  title: Add /api/ping latency histogram to /api/status
+  priority: normal
+  rationale: Dashboard shows CI counts but no runtime perf signal.
+  added_by: seed
+  issue_number: 19
 shipped: []
 rejected: []
