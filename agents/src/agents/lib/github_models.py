@@ -10,6 +10,7 @@ from agents.lib import tool_executors
 
 _BASE_URL = "https://models.github.ai/inference"
 _DEFAULT_MODEL = os.environ.get("GITHUB_MODELS_DEFAULT_MODEL", "openai/gpt-4o-mini")
+_MAX_TOOL_RESULT_CHARS = 8_000  # GH Models 413s if messages grow too large
 
 _TOOL_SCHEMAS = {
     "Read": {
@@ -151,6 +152,8 @@ async def run_agent(
                 name = call["function"]["name"]
                 args = call["function"]["arguments"]
                 result = tool_executors.execute(name, args)
+                if len(result) > _MAX_TOOL_RESULT_CHARS:
+                    result = result[:_MAX_TOOL_RESULT_CHARS] + "\n...[truncated]"
                 messages.append({
                     "role": "tool",
                     "tool_call_id": call["id"],
