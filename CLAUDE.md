@@ -89,6 +89,8 @@ To enable, populate:
 
 Without these, the triager exits 0 silently.
 
+**Regression detection:** when a Sentry issue ID matches a CLOSED GH issue, triager reopens it with label `regression` instead of creating a duplicate. This closes the self-healing loop for recurring bugs.
+
 To trigger the loop manually: open the auto-created issue → add `agent:build` label → planner takes over.
 
 ## Healthcheck (daily)

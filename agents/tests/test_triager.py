@@ -169,3 +169,55 @@ def test_parse_severity_clamps_out_of_range() -> None:
 
 def test_parse_severity_uses_last_match() -> None:
     assert _parse_severity("SEVERITY: 3\nSEVERITY: 9") == 9
+
+
+def test_find_issue_by_marker_returns_match() -> None:
+    from agents.triager import _find_issue_by_marker
+
+    i1 = MagicMock(body="unrelated")
+    i2 = MagicMock(body=f"text {_make_marker('abc')} more")
+    assert _find_issue_by_marker([i1, i2], _make_marker("abc")) is i2
+
+
+def test_find_issue_by_marker_returns_none_when_absent() -> None:
+    from agents.triager import _find_issue_by_marker
+
+    assert _find_issue_by_marker([MagicMock(body="x")], _make_marker("abc")) is None
+
+
+def test_triage_run_reopens_closed_issue_on_regression() -> None:
+    fake_repo = MagicMock()
+    closed_issue = MagicMock(number=5, body="<sentry-issue-id>recurring</sentry-issue-id>")
+
+    def get_issues_side_effect(state: str | None = None, labels: object = None, **_kwargs: object) -> list[object]:
+        if state == "open":
+            return []
+        if state == "closed":
+            return [closed_issue]
+        return []
+
+    fake_repo.get_issues.side_effect = get_issues_side_effect
+
+    fake_sentry_issues = [{
+        "id": "recurring",
+        "title": "ZeroDivisionError",
+        "culprit": "x.py:42",
+        "count": "5",
+        "permalink": "https://sentry.io/y",
+        "level": "error",
+    }]
+
+    with (
+        patch.dict("os.environ", {"SENTRY_ORG_SLUG": "o", "SENTRY_PROJECT_SLUG": "p"}, clear=True),
+        patch("agents.triager.gh.repo", return_value=fake_repo),
+        patch("agents.triager.sentry.list_issues", return_value=fake_sentry_issues),
+        patch("agents.triager._score_severity", return_value=5),
+    ):
+        rc = triage_run(24, dry_run=False)
+
+    assert rc == 0
+    closed_issue.edit.assert_called_once_with(state="open")
+    closed_issue.add_to_labels.assert_called_once()
+    labels_args = closed_issue.add_to_labels.call_args.args
+    assert "regression" in labels_args
+    fake_repo.create_issue.assert_not_called()

@@ -35,6 +35,14 @@ def _existing_marker_in_issues(issues: list[Any], marker: str) -> bool:
     return False
 
 
+def _find_issue_by_marker(issues: list[Any], marker: str) -> Any | None:
+    for issue in issues:
+        body = getattr(issue, "body", None) or ""
+        if marker in body:
+            return issue
+    return None
+
+
 def _format_issue_body(s_issue: dict[str, Any], marker: str) -> str:
     return (
         f"{marker}\n\n"
@@ -114,17 +122,33 @@ def triage_run(since_hours: int, *, dry_run: bool) -> int:
     sentry_issues = sentry.list_issues(org, proj, since=since)
 
     repo = gh.repo()
-    existing = list(repo.get_issues(state="all", labels=[labels.AUTOTRIAGE]))
+    existing_open = list(repo.get_issues(state="open", labels=[labels.AUTOTRIAGE]))
+    existing_closed = list(repo.get_issues(state="closed", labels=[labels.AUTOTRIAGE]))
 
     new_count = 0
     deduped = 0
+    reopened = 0
     for s_issue in sentry_issues:
         sentry_id = str(s_issue.get("id", ""))
         if not sentry_id:
             continue
         marker = _make_marker(sentry_id)
-        if _existing_marker_in_issues(existing, marker):
+        if _existing_marker_in_issues(existing_open, marker):
             deduped += 1
+            continue
+        closed_match = _find_issue_by_marker(existing_closed, marker)
+        if closed_match is not None:
+            if dry_run:
+                print(f"DRY RUN — would reopen #{closed_match.number} as regression: {s_issue.get('title')}")
+            else:
+                closed_match.edit(state="open")
+                closed_match.add_to_labels(labels.REGRESSION)
+                closed_match.create_comment(
+                    f"Regression detected — this error recurred in Sentry. "
+                    f"Reopened + labeled `{labels.REGRESSION}`."
+                )
+                print(f"Reopened regression issue #{closed_match.number}")
+            reopened += 1
             continue
 
         title = f"[autotriage] {s_issue.get('title', 'Unknown error')}"
@@ -142,7 +166,7 @@ def triage_run(since_hours: int, *, dry_run: bool) -> int:
         new_count += 1
 
     print(
-        f"triaged: total_sentry={len(sentry_issues)} new_gh={new_count} deduped={deduped}",
+        f"triaged: total_sentry={len(sentry_issues)} new_gh={new_count} deduped={deduped} reopened={reopened}",
         flush=True,
     )
     return 0
