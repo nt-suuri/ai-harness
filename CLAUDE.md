@@ -188,7 +188,15 @@ Parallel to 4–6: `rollback-watch.yml` fires after `deploy-prod` and watches Se
 - Variable `DEV_URL` (optional; defaults to `https://ai-harness-dev-production.up.railway.app`)
 - Variable `PROD_URL` (optional; defaults to `https://ai-harness-production.up.railway.app`)
 
-Until `RAILWAY_DEV_TOKEN` is set, `deploy-dev.yml` skips silently and `test-dev` fails waiting for a dev URL. Both are informational — `deploy-prod` fires directly on push to main regardless. Once you create the dev service, the test-dev smoke becomes meaningful.
+**Dev pipeline workflows are DISABLED** until the user creates the Railway dev service + `RAILWAY_DEV_TOKEN` secret. To enable after setup:
+
+```bash
+gh workflow enable deploy-dev.yml --repo nt-suuri/ai-harness
+gh workflow enable test-dev.yml --repo nt-suuri/ai-harness
+gh secret set RAILWAY_DEV_TOKEN --repo nt-suuri/ai-harness --body <railway-dev-token>
+```
+
+Then optionally add `workflow_run: [test-dev]` trigger to `deploy-prod.yml` for dev-gating.
 
 ## Activation state (2026-04-14)
 
