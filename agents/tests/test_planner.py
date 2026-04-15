@@ -92,6 +92,8 @@ async def test_plan_and_open_pr_opens_pr_when_changes_present() -> None:
         patch("agents.planner.run_agent", new=AsyncMock()) as mock_run,
         patch("agents.planner._run_git") as git,
         patch("agents.planner._has_changes", return_value=True),
+        patch("agents.planner.planner_validate.validate", return_value=[]),
+        patch("agents.planner._changed_files", return_value=[]),
     ):
         mock_run.return_value = MagicMock(
             messages=[{"type": "text", "text": "Plan: add /ping."}],
@@ -122,6 +124,8 @@ async def test_plan_and_open_pr_returns_1_when_agent_made_no_changes() -> None:
         patch("agents.planner.run_agent", new=AsyncMock()) as mock_run,
         patch("agents.planner._run_git"),
         patch("agents.planner._has_changes", return_value=False),
+        patch("agents.planner.planner_validate.validate", return_value=[]),
+        patch("agents.planner._changed_files", return_value=[]),
     ):
         mock_run.return_value = MagicMock(
             messages=[{"type": "text", "text": "No changes needed."}],
@@ -132,3 +136,116 @@ async def test_plan_and_open_pr_returns_1_when_agent_made_no_changes() -> None:
     assert rc == 1
     fake_repo.create_pull.assert_not_called()
     fake_issue.create_comment.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_planner_passes_through_when_validation_returns_empty() -> None:
+    """Happy path: validate returns [], planner proceeds to commit + PR."""
+    fake_repo = MagicMock()
+    fake_issue = MagicMock(title="Test issue", body="test body")
+    fake_issue.number = 1
+    fake_repo.get_issue.return_value = fake_issue
+    fake_repo.get_pulls.return_value = []
+    fake_pr = MagicMock(number=99, html_url="https://x/pr/99")
+    fake_repo.create_pull.return_value = fake_pr
+    fake_repo.owner.login = "nt-suuri"
+
+    fake_run_agent = AsyncMock(return_value=MagicMock(messages=[{"type": "text", "text": "done"}]))
+
+    with (
+        patch("agents.planner.gh.repo", return_value=fake_repo),
+        patch("agents.planner.run_agent", fake_run_agent),
+        patch("agents.planner.planner_validate.validate", return_value=[]),
+        patch("agents.planner._has_changes", return_value=True),
+        patch("agents.planner._run_git"),
+        patch("agents.planner._changed_files", return_value=["apps/api/src/api/x.py"]),
+    ):
+        rc = await plan_and_open_pr(1, dry_run=False)
+
+    assert rc == 0
+    assert fake_run_agent.call_count == 1, "no retry when validate returns []"
+
+
+@pytest.mark.asyncio
+async def test_planner_retries_once_when_validation_fails_first_time() -> None:
+    """Validate fails then passes: planner calls run_agent twice, then commits."""
+    fake_repo = MagicMock()
+    fake_issue = MagicMock(title="T", body="b")
+    fake_issue.number = 1
+    fake_repo.get_issue.return_value = fake_issue
+    fake_repo.get_pulls.return_value = []
+    fake_repo.create_pull.return_value = MagicMock(number=99, html_url="u")
+    fake_repo.owner.login = "nt-suuri"
+
+    fake_run_agent = AsyncMock(return_value=MagicMock(messages=[{"type": "text", "text": "retry-done"}]))
+
+    validate_mock = MagicMock()
+    validate_mock.side_effect = [["ruff: E501 line too long"], []]
+
+    with (
+        patch("agents.planner.gh.repo", return_value=fake_repo),
+        patch("agents.planner.run_agent", fake_run_agent),
+        patch("agents.planner.planner_validate.validate", validate_mock),
+        patch("agents.planner._has_changes", return_value=True),
+        patch("agents.planner._run_git"),
+        patch("agents.planner._changed_files", return_value=["apps/api/src/api/x.py"]),
+    ):
+        rc = await plan_and_open_pr(1, dry_run=False)
+
+    assert rc == 0
+    assert fake_run_agent.call_count == 2, "expected one retry"
+    assert validate_mock.call_count == 2, "expected validate called twice"
+
+
+@pytest.mark.asyncio
+async def test_planner_posts_comment_and_skips_pr_when_validation_fails_after_retry() -> None:
+    """Two consecutive validate failures: no PR, just an issue comment explaining why."""
+    fake_repo = MagicMock()
+    fake_issue = MagicMock(title="T", body="b")
+    fake_issue.number = 1
+    fake_repo.get_issue.return_value = fake_issue
+
+    fake_run_agent = AsyncMock(return_value=MagicMock(messages=[{"type": "text", "text": "done"}]))
+
+    validate_mock = MagicMock()
+    validate_mock.side_effect = [["still broken"], ["still broken after retry"]]
+
+    with (
+        patch("agents.planner.gh.repo", return_value=fake_repo),
+        patch("agents.planner.run_agent", fake_run_agent),
+        patch("agents.planner.planner_validate.validate", validate_mock),
+        patch("agents.planner._changed_files", return_value=["x.py"]),
+        patch("agents.planner._has_changes") as has_changes,
+        patch("agents.planner._run_git") as run_git,
+    ):
+        rc = await plan_and_open_pr(1, dry_run=False)
+
+    assert rc == 2, "planner should return 2 when validation persistently fails"
+    assert fake_run_agent.call_count == 2
+    fake_issue.create_comment.assert_called_once()
+    comment_body = fake_issue.create_comment.call_args[0][0]
+    assert "validation failed" in comment_body.lower()
+    assert "still broken after retry" in comment_body
+    has_changes.assert_not_called()
+    run_git.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_planner_skips_validation_in_dry_run() -> None:
+    """Dry-run exits before validation runs."""
+    fake_repo = MagicMock()
+    fake_issue = MagicMock(title="T", body="b")
+    fake_issue.number = 1
+    fake_repo.get_issue.return_value = fake_issue
+
+    fake_run_agent = AsyncMock(return_value=MagicMock(messages=[{"type": "text", "text": "preview"}]))
+
+    with (
+        patch("agents.planner.gh.repo", return_value=fake_repo),
+        patch("agents.planner.run_agent", fake_run_agent),
+        patch("agents.planner.planner_validate.validate") as validate_mock,
+    ):
+        rc = await plan_and_open_pr(1, dry_run=True)
+
+    assert rc == 0
+    validate_mock.assert_not_called()

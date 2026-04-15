@@ -2,8 +2,6 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from agents.lib import planner_validate
 
 

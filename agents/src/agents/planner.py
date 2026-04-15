@@ -10,9 +10,10 @@ import asyncio
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
-from agents.lib import gh, kill_switch, prompts
+from agents.lib import gh, kill_switch, planner_validate, prompts
 from agents.lib.anthropic import run_agent
 
 _MAX_TURNS = 80
@@ -46,6 +47,21 @@ def _has_changes() -> bool:
         ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
     )
     return bool(result.stdout.strip())
+
+
+def _changed_files() -> list[str]:
+    result = subprocess.run(
+        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+    )
+    files: list[str] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        path = line[3:]
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        files.append(path.strip())
+    return files
 
 
 def _extract_text(messages: list[Any]) -> str:
@@ -82,6 +98,31 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
         print(f"--- DRY RUN [issue #{issue_number}] ---")
         print(plan_summary)
         return 0
+
+    REPO_ROOT = Path.cwd()
+    validation_errors = planner_validate.validate(REPO_ROOT, _changed_files())
+    if validation_errors:
+        retry_prompt = (
+            "Your previous changes failed validation:\n\n"
+            + "\n\n".join(validation_errors)
+            + "\n\nFix these errors. Do not change the overall approach — just address the specific issues above."
+        )
+        retry = await run_agent(
+            prompt=retry_prompt,
+            system=system,
+            max_turns=_MAX_TURNS,
+            allowed_tools=_ALLOWED_TOOLS,
+        )
+        plan_summary = _extract_text(retry.messages) or plan_summary
+        validation_errors = planner_validate.validate(REPO_ROOT, _changed_files())
+
+    if validation_errors:
+        issue.create_comment(
+            "**Planner ran but validation failed after one retry.**\n\n"
+            + "\n\n".join(validation_errors)
+            + "\n\nBranch not pushed. Please review manually."
+        )
+        return 2
 
     if not _has_changes():
         issue.create_comment(f"**Planner ran but made no changes.**\n\n{plan_summary}")
