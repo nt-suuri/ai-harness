@@ -7,6 +7,7 @@ Usage:
 
 import argparse
 import os
+import subprocess
 import sys
 import time
 from datetime import UTC, datetime, timedelta
@@ -90,7 +91,37 @@ def watch_post_deploy(sha: str, window_minutes: int, *, dry_run: bool) -> int:
     repo = gh.repo()
     issue = repo.create_issue(title=title, body=body, labels=[labels.REGRESSION, labels.AUTOTRIAGE])
     print(f"Opened regression issue #{issue.number}: {issue.html_url}", flush=True)
+
+    if os.environ.get("AUTO_ROLLBACK", "").strip().lower() == "true":
+        rolled_back = _auto_revert(sha)
+        if rolled_back:
+            issue.create_comment(f"Auto-rollback: reverted commit `{sha[:7]}` (see `{rolled_back}`).")
+
     return 1
+
+
+def _auto_revert(sha: str) -> str | None:
+    """git revert <sha> && git push. Returns the revert commit SHA on success, None on failure."""
+    try:
+        subprocess.run(
+            ["git", "-c", "user.name=ai-harness-bot",
+             "-c", "user.email=ai-harness@local",
+             "revert", "--no-edit", sha],
+            check=True, capture_output=True, text=True,
+        )
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "push", "origin", "HEAD:main"],
+            check=True, capture_output=True, text=True,
+        )
+        print(f"Auto-reverted {sha[:7]} as {head[:7]}", flush=True)
+        return head
+    except subprocess.CalledProcessError as e:
+        print(f"Auto-revert failed: {e.stderr}", flush=True)
+        return None
 
 
 def main(argv: list[str] | None = None) -> int:

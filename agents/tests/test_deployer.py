@@ -107,6 +107,77 @@ def test_watch_post_deploy_returns_zero_when_healthy() -> None:
 
 def test_watch_post_deploy_noop_when_sentry_not_configured() -> None:
     with patch.dict("os.environ", {}, clear=True):
-        # No SENTRY_ORG_SLUG / SENTRY_PROJECT_SLUG → exit 0 silently
         rc = watch_post_deploy("sha", 10, dry_run=False)
     assert rc == 0
+
+
+def test_auto_revert_calls_git_revert_and_push() -> None:
+    from agents.deployer import _auto_revert
+
+    call_log: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: object) -> MagicMock:
+        call_log.append(args)
+        if args[:2] == ["git", "rev-parse"]:
+            return MagicMock(stdout="newsha1234567\n", returncode=0)
+        return MagicMock(stdout="", returncode=0)
+
+    with patch("agents.deployer.subprocess.run", side_effect=fake_run):
+        result = _auto_revert("deadbeef")
+
+    assert result == "newsha1234567"
+    assert any("revert" in " ".join(a) for a in call_log)
+    assert any("push" in " ".join(a) for a in call_log)
+
+
+def test_auto_revert_returns_none_on_failure() -> None:
+    import subprocess as sp
+
+    from agents.deployer import _auto_revert
+
+    err = sp.CalledProcessError(1, ["git"], stderr="conflict")
+    with patch("agents.deployer.subprocess.run", side_effect=err):
+        result = _auto_revert("deadbeef")
+    assert result is None
+
+
+def test_watch_post_deploy_auto_rolls_back_when_flag_set() -> None:
+    fake_repo = MagicMock()
+    fake_repo.create_issue.return_value = MagicMock(number=42)
+
+    with (
+        patch("agents.deployer.gh.repo", return_value=fake_repo),
+        patch("agents.deployer.sentry.count_events_since", side_effect=[1, 30]),
+        patch("agents.deployer.time.sleep"),
+        patch("agents.deployer._auto_revert", return_value="revertsha1") as revert,
+        patch.dict("os.environ", {
+            "SENTRY_ORG_SLUG": "o",
+            "SENTRY_PROJECT_SLUG": "p",
+            "AUTO_ROLLBACK": "true",
+        }, clear=True),
+    ):
+        rc = watch_post_deploy("abcd1234", 10, dry_run=False)
+
+    assert rc == 1
+    revert.assert_called_once_with("abcd1234")
+    fake_repo.create_issue.return_value.create_comment.assert_called_once()
+
+
+def test_watch_post_deploy_no_auto_revert_when_flag_unset() -> None:
+    fake_repo = MagicMock()
+    fake_repo.create_issue.return_value = MagicMock(number=42)
+
+    with (
+        patch("agents.deployer.gh.repo", return_value=fake_repo),
+        patch("agents.deployer.sentry.count_events_since", side_effect=[1, 30]),
+        patch("agents.deployer.time.sleep"),
+        patch("agents.deployer._auto_revert") as revert,
+        patch.dict("os.environ", {
+            "SENTRY_ORG_SLUG": "o",
+            "SENTRY_PROJECT_SLUG": "p",
+        }, clear=True),
+    ):
+        rc = watch_post_deploy("abcd1234", 10, dry_run=False)
+
+    assert rc == 1
+    revert.assert_not_called()

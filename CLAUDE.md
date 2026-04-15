@@ -73,6 +73,8 @@ When unset, the watcher exits 0 silently (no false alerts before Sentry is wired
 
 Auto-rollback (`git revert` or Railway rollback) is **not** in Phase 5 — it's alert-only. Add auto-revert when the alert pipeline proves reliable.
 
+**Auto-revert:** set Railway env `AUTO_ROLLBACK=true` and rollback-watch will also `git revert <bad_sha>` + push, triggering a new deploy of the previous state. Default off (alert-only).
+
 ## Triager (nightly self-healing)
 
 `triager.yml` runs at 09:00 UTC daily (and on `workflow_dispatch`). It:
