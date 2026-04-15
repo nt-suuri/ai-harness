@@ -39,19 +39,15 @@ def _pytest(cwd: Path, test_files: list[str]) -> str | None:
 
 def validate(cwd: Path, changed_files: list[str]) -> list[str]:
     """Return a list of error messages. Empty list = validation passed."""
-    changed_files = [
+    safe_files = [
         f for f in changed_files
         if not Path(f).is_absolute() and ".." not in Path(f).parts
     ]
-    errors: list[str] = []
-    test_files = [f for f in changed_files if "/tests/" in f and f.endswith(".py")]
+    py_files = [f for f in safe_files if f.endswith(".py")]
+    test_files = [f for f in safe_files if "/tests/" in f and f.endswith(".py")]
 
-    for checker in (
-        lambda: _ruff(cwd, [f for f in changed_files if f.endswith(".py")]),
-        lambda: _compile(cwd, changed_files),
-        lambda: _pytest(cwd, test_files),
-    ):
-        err = checker()
+    errors: list[str] = []
+    for err in (_ruff(cwd, py_files), _compile(cwd, safe_files), _pytest(cwd, test_files)):
         if err:
             errors.append(err)
     return errors

@@ -6,6 +6,7 @@ import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -21,7 +22,7 @@ async def run(state_path: Path, vision_path: Path, *, dry_run: bool) -> None:
     state = product_state.load(state_path)
     vision = vision_path.read_text() if vision_path.exists() else ""
     repo = gh.repo()
-    commits = list(repo.get_commits()[:_COMMIT_LOOKBACK])
+    commits: list[Any] = list(repo.get_commits()[:_COMMIT_LOOKBACK])
 
     commit_blob = "\n".join(f"- {c.commit.message.splitlines()[0]}" for c in commits)
 
