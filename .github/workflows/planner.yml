@@ -56,4 +56,10 @@ jobs:
           enable-cache: true
       - run: uv sync --group dev --all-packages --frozen
       - name: Plan and open PR
+        env:
+          # gh pr merge inside the planner needs a user-scoped token so the
+          # resulting squash-merge push triggers downstream workflows
+          # (deploy-prod, release-notes, etc). The default GITHUB_TOKEN would
+          # be attributed to github-actions[bot] and hit cascade protection.
+          GH_TOKEN: ${{ secrets.COPILOT_PAT }}
         run: uv run python -m agents.planner --issue "$ISSUE_NUMBER"
