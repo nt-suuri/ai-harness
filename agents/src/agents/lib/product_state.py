@@ -42,16 +42,20 @@ class State:
 
 
 def load(path: Path) -> State:
-    data: dict[str, Any] = yaml.safe_load(path.read_text()) or {}
-    return State(
-        max_open_agent_issues=int(data.get("max_open_agent_issues", 2)),
-        last_pm_run=data.get("last_pm_run"),
-        last_analyzer_run=data.get("last_analyzer_run"),
-        backlog=[Item(**d) for d in data.get("backlog") or []],
-        in_progress=[Item(**d) for d in data.get("in_progress") or []],
-        shipped=[Item(**d) for d in data.get("shipped") or []],
-        rejected=[Item(**d) for d in data.get("rejected") or []],
-    )
+    text = path.read_text()
+    try:
+        data: dict[str, Any] = yaml.safe_load(text) or {}
+        return State(
+            max_open_agent_issues=int(data.get("max_open_agent_issues", 2)),
+            last_pm_run=data.get("last_pm_run"),
+            last_analyzer_run=data.get("last_analyzer_run"),
+            backlog=[Item(**d) for d in data.get("backlog") or []],
+            in_progress=[Item(**d) for d in data.get("in_progress") or []],
+            shipped=[Item(**d) for d in data.get("shipped") or []],
+            rejected=[Item(**d) for d in data.get("rejected") or []],
+        )
+    except (yaml.YAMLError, TypeError) as exc:
+        raise ValueError(f"invalid state file {path}: {exc}") from exc
 
 
 def save(path: Path, state: State) -> None:
