@@ -122,7 +122,7 @@ async def run_agent(
     collected: list[object] = []
     stopped_reason = "complete"
 
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=180) as client:
         for _ in range(max_turns):
             body: dict[str, object] = {"model": model, "messages": messages, "max_tokens": 4096}
             if tools:

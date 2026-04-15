@@ -30,13 +30,21 @@ def read(path: str, **_: object) -> str:
 
 
 def write(path: str, content: str, **_: object) -> str:
+    content = _unescape(content)
     p = _safe_path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content, encoding="utf-8")
     return f"Wrote {len(content)} chars to {path}"
 
 
+def _unescape(s: str) -> str:
+    """Some models send literal \\n instead of real newlines in tool args."""
+    return s.replace("\\n", "\n").replace("\\t", "\t")
+
+
 def edit(path: str, old_string: str, new_string: str, **_: object) -> str:
+    old_string = _unescape(old_string)
+    new_string = _unescape(new_string)
     p = _safe_path(path)
     if not p.is_file():
         return f"ERROR: {path} does not exist"
