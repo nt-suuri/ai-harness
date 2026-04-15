@@ -57,6 +57,14 @@ Three new moving parts close the full self-directing cycle:
 - Both PM and Analyzer commits use `[skip ci]` as belt-and-suspenders.
 - Kill switch: `gh variable set PAUSE_AGENTS --body true` halts all autonomous workflows.
 
+## Planner reliability (P60)
+
+Three improvements cut planner PR bugs:
+
+1. **Explicit repo conventions in `planner.md`** — before/after import examples show the LLM that `from api.main import app` is correct, not `from apps.api.src.api import app`. Lists test-file locations, router wiring, and files the planner must NEVER edit.
+2. **Pre-commit validation in `planner.py`** — after the LLM tool loop, run `ruff check` + `python -m compileall` + `pytest` on the changed files. On failure, feed errors back to the LLM for ONE retry. If the retry still fails, post a comment on the issue explaining the failure and skip the PR (no branch pushed).
+3. **`pull_request_target` trigger on CI + reviewer** — bypasses GitHub's cascade protection so planner-opened PRs run the same CI + 3-pass review gates as human-opened ones. Security model: secrets are only used in `deploy-prod.yml` (unchanged); CI + reviewer run against PR-head code but with base-branch workflow file, so malicious PR content cannot escalate privileges.
+
 ## Secrets
 
 Stored as repo secrets:
