@@ -49,12 +49,11 @@ async def run(state_path: Path, vision_path: Path, *, dry_run: bool) -> str:
     if decision["kind"] == "SKIP":
         return "skipped"
 
-    if decision["kind"] == "PICK":
-        if not any(b.id == decision["id"] for b in state.backlog):
-            raise ValueError(
-                f"PM picked ID {decision['id']!r} not in backlog. "
-                f"Available: {[b.id for b in state.backlog]}"
-            )
+    if decision["kind"] == "PICK" and not any(b.id == decision["id"] for b in state.backlog):
+        raise ValueError(
+            f"PM picked ID {decision['id']!r} not in backlog. "
+            f"Available: {[b.id for b in state.backlog]}"
+        )
 
     if not dry_run:
         body = decision["body"] + f"\n\n_Opened autonomously by Product Manager agent at {datetime.now(UTC).isoformat()}._"

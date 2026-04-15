@@ -167,9 +167,9 @@ async def test_malformed_llm_response_raises(tmp_path: Path) -> None:
     with (
         patch("agents.product_manager.gh.repo", return_value=fake_repo),
         patch("agents.product_manager.run_agent", fake_llm),
+        pytest.raises(ValueError, match="Unrecognised PM decision"),
     ):
-        with pytest.raises(ValueError, match="Unrecognised PM decision"):
-            await product_manager.run(state_path, vision_path, dry_run=False)
+        await product_manager.run(state_path, vision_path, dry_run=False)
 
     fake_repo.create_issue.assert_not_called()
 
@@ -188,8 +188,8 @@ async def test_pick_with_bogus_id_raises_before_issue_creation(tmp_path: Path) -
     with (
         patch("agents.product_manager.gh.repo", return_value=fake_repo),
         patch("agents.product_manager.run_agent", fake_llm),
+        pytest.raises(ValueError, match="not in backlog"),
     ):
-        with pytest.raises(ValueError, match="not in backlog"):
-            await product_manager.run(state_path, vision_path, dry_run=False)
+        await product_manager.run(state_path, vision_path, dry_run=False)
 
     fake_repo.create_issue.assert_not_called()
