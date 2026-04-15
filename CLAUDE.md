@@ -175,7 +175,7 @@ GH Models free-tier rate limits: ~50 premium-model requests/day; faster for non-
 1. **Verify CI** — `ci.yml` on PR (ruff/mypy/pytest/vitest/playwright/docker/env-parity)
 2. **Deploy Dev** — `deploy-dev.yml` on push to main → Railway `ai-harness-dev`
 3. **Test Dev** — `test-dev.yml` post-deploy → Playwright smoke against dev URL
-4. **Deploy Prod** — `deploy-prod.yml` gated on `test-dev` success → Railway `ai-harness`
+4. **Deploy Prod** — `deploy-prod.yml` on push to main → Railway `ai-harness` (currently independent of test-dev; when you want dev-gating, add `workflow_run: [test-dev]` trigger to deploy-prod.yml)
 5. **Test Prod** — `test-prod.yml` post-deploy → `/api/ping` smoke
 6. **Release** — `release-notes.yml` gated on `deploy-prod` success → AI-generated CHANGELOG + GH Release
 
@@ -188,7 +188,7 @@ Parallel to 4–6: `rollback-watch.yml` fires after `deploy-prod` and watches Se
 - Variable `DEV_URL` (optional; defaults to `https://ai-harness-dev-production.up.railway.app`)
 - Variable `PROD_URL` (optional; defaults to `https://ai-harness-production.up.railway.app`)
 
-Until `RAILWAY_DEV_TOKEN` is set, `deploy-dev.yml` exits 0 without deploying (and downstream `test-dev` / `deploy-prod` don't fire either). **Set the secret to activate the full pipeline.**
+Until `RAILWAY_DEV_TOKEN` is set, `deploy-dev.yml` skips silently and `test-dev` fails waiting for a dev URL. Both are informational — `deploy-prod` fires directly on push to main regardless. Once you create the dev service, the test-dev smoke becomes meaningful.
 
 ## Activation state (2026-04-14)
 
