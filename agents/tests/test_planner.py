@@ -196,6 +196,12 @@ async def test_planner_retries_once_when_validation_fails_first_time() -> None:
     assert fake_run_agent.call_count == 2, "expected one retry"
     assert validate_mock.call_count == 2, "expected validate called twice"
 
+    # Retry prompt must contain the original validation error text
+    retry_call = fake_run_agent.call_args_list[1]
+    retry_prompt = retry_call.kwargs["prompt"]
+    assert "ruff: E501 line too long" in retry_prompt, \
+        f"retry prompt should echo the earlier error; got: {retry_prompt[:200]}"
+
 
 @pytest.mark.asyncio
 async def test_planner_posts_comment_and_skips_pr_when_validation_fails_after_retry() -> None:

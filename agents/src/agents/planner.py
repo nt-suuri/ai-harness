@@ -49,9 +49,11 @@ def _has_changes() -> bool:
     return bool(result.stdout.strip())
 
 
-def _changed_files() -> list[str]:
+def _changed_files(cwd: Path) -> list[str]:
+    """Files modified or added in the working tree vs HEAD. Used for scoped validation."""
     result = subprocess.run(
-        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+        ["git", "status", "--porcelain"],
+        cwd=cwd, capture_output=True, text=True, check=True,
     )
     files: list[str] = []
     for line in result.stdout.splitlines():
@@ -100,11 +102,19 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
         return 0
 
     REPO_ROOT = Path.cwd()
-    validation_errors = planner_validate.validate(REPO_ROOT, _changed_files())
+
+    def _safe_validate() -> list[str]:
+        try:
+            return planner_validate.validate(REPO_ROOT, _changed_files(REPO_ROOT))
+        except Exception as exc:
+            return [f"validation crashed: {exc}"]
+
+    validation_errors = _safe_validate()
     if validation_errors:
+        error_blob = "\n\n".join(validation_errors)[:4096]
         retry_prompt = (
             "Your previous changes failed validation:\n\n"
-            + "\n\n".join(validation_errors)
+            + error_blob
             + "\n\nFix these errors. Do not change the overall approach — just address the specific issues above."
         )
         retry = await run_agent(
@@ -114,12 +124,12 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
             allowed_tools=_ALLOWED_TOOLS,
         )
         plan_summary = _extract_text(retry.messages) or plan_summary
-        validation_errors = planner_validate.validate(REPO_ROOT, _changed_files())
+        validation_errors = _safe_validate()
 
     if validation_errors:
         issue.create_comment(
             "**Planner ran but validation failed after one retry.**\n\n"
-            + "\n\n".join(validation_errors)
+            + "\n\n".join(validation_errors)[:4096]
             + "\n\nBranch not pushed. Please review manually."
         )
         return 2
