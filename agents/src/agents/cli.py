@@ -150,6 +150,65 @@ def resume() -> None:
     click.echo("PAUSE_AGENTS cleared — workflows will run on next trigger")
 
 
+@cli.group()
+def flag() -> None:
+    """Manage feature flags (feature-flags.json at repo root)."""
+
+
+@flag.command("list")
+def flag_list() -> None:
+    """List all feature flags and their state."""
+    from pathlib import Path
+
+    repo_root = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    flags_file = Path(repo_root) / "feature-flags.json"
+    if not flags_file.exists():
+        click.echo("(no feature-flags.json)")
+        return
+    data = json.loads(flags_file.read_text())
+    if not data:
+        click.echo("(no flags defined)")
+        return
+    for name, value in sorted(data.items()):
+        mark = click.style("✓", fg="green") if value else click.style("✗", fg="red")
+        click.echo(f"  {mark}  {name}: {value}")
+
+
+@flag.command("set")
+@click.argument("name")
+@click.argument("state", type=click.Choice(["on", "off"]))
+@click.option("--commit/--no-commit", default=True, help="Auto-commit + push after edit")
+def flag_set(name: str, state: str, commit: bool) -> None:
+    """Turn a feature flag on or off."""
+    from pathlib import Path
+
+    repo_root = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    flags_file = Path(repo_root) / "feature-flags.json"
+
+    data: dict[str, object] = json.loads(flags_file.read_text()) if flags_file.exists() else {}
+    data[name] = state == "on"
+    flags_file.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+
+    if not commit:
+        click.echo(f"Updated feature-flags.json: {name}={state} (not committed)")
+        return
+
+    subprocess.run(["git", "add", "feature-flags.json"], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=ai-harness-bot", "-c", "user.email=ai-harness@local",
+         "commit", "-m", f"chore(flags): {state} {name}"],
+        cwd=repo_root, check=True,
+    )
+    subprocess.run(["git", "push"], cwd=repo_root, check=True)
+    click.echo(f"Flag {name} = {state}, committed + pushed. Redeploy in ~2 min.")
+
+
 @cli.command()
 def doctor() -> None:
     """Check operator environment health."""

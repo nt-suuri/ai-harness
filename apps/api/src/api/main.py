@@ -7,6 +7,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from api.agents import router as agents_router
+from api.flags import router as flags_router
 from api.security import SecurityHeadersMiddleware, cors_origins, limiter
 from api.sentry import init_sentry
 from api.status import router as status_router
@@ -32,6 +33,7 @@ if origins:
 app.include_router(status_router)
 app.include_router(version_router)
 app.include_router(agents_router)
+app.include_router(flags_router)
 
 
 @app.get("/api/ping")

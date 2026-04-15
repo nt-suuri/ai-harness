@@ -308,3 +308,39 @@ def test_uninstall_mcp_dry_run(tmp_path, monkeypatch) -> None:
     assert "DRY RUN" in result.output
     config_after = json.loads(config_file.read_text())
     assert "ai-harness" in config_after["mcpServers"]
+
+
+def test_flag_list_no_file(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["flag", "list"])
+    assert result.exit_code == 0
+    assert "no feature-flags.json" in result.output
+
+
+def test_flag_list_with_flags(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    flags_file = tmp_path / "feature-flags.json"
+    flags_file.write_text('{"dark_mode": true, "beta": false}')
+
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["flag", "list"])
+    assert result.exit_code == 0
+    assert "dark_mode" in result.output
+    assert "beta" in result.output
+
+
+def test_flag_set_no_commit_writes_file(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    with patch("agents.cli.subprocess.run") as run:
+        run.return_value = MagicMock(stdout=str(tmp_path) + "\n", returncode=0)
+        result = runner.invoke(cli, ["flag", "set", "dark_mode", "on", "--no-commit"])
+    assert result.exit_code == 0
+    flags_file = tmp_path / "feature-flags.json"
+    assert flags_file.exists()
+    assert json.loads(flags_file.read_text()) == {"dark_mode": True}
