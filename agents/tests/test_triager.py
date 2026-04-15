@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from agents import triager
+from agents.lib import labels
 from agents.triager import (
     _existing_marker_in_issues,
     _make_marker,
@@ -221,3 +223,47 @@ def test_triage_run_reopens_closed_issue_on_regression() -> None:
     labels_args = closed_issue.add_to_labels.call_args.args
     assert "regression" in labels_args
     fake_repo.create_issue.assert_not_called()
+
+
+def test_critical_sentry_issue_gets_agent_build_label() -> None:
+    fake_repo = MagicMock()
+    fake_repo.get_issues.return_value = []
+    fake_repo.get_labels.return_value = []
+    fake_repo.create_issue.return_value = MagicMock(number=42, html_url="u")
+
+    with (
+        patch.dict(os.environ, {"SENTRY_ORG_SLUG": "o", "SENTRY_PROJECT_SLUG": "p"}, clear=True),
+        patch("agents.triager.gh.repo", return_value=fake_repo),
+        patch("agents.triager.sentry.list_issues", return_value=[{
+            "id": "abc", "title": "KeyError", "permalink": "p",
+            "count": "100", "userCount": "50",
+        }]),
+        patch("agents.triager._severity_label", return_value=labels.SEVERITY_CRITICAL),
+    ):
+        triager.triage_run(24, dry_run=False)
+
+    applied = fake_repo.create_issue.call_args.kwargs["labels"]
+    assert labels.AGENT_BUILD in applied
+    assert labels.SEVERITY_CRITICAL in applied
+
+
+def test_minor_sentry_issue_omits_agent_build_label() -> None:
+    fake_repo = MagicMock()
+    fake_repo.get_issues.return_value = []
+    fake_repo.get_labels.return_value = []
+    fake_repo.create_issue.return_value = MagicMock(number=43, html_url="u")
+
+    with (
+        patch.dict(os.environ, {"SENTRY_ORG_SLUG": "o", "SENTRY_PROJECT_SLUG": "p"}, clear=True),
+        patch("agents.triager.gh.repo", return_value=fake_repo),
+        patch("agents.triager.sentry.list_issues", return_value=[{
+            "id": "xyz", "title": "Typo log", "permalink": "p",
+            "count": "2", "userCount": "1",
+        }]),
+        patch("agents.triager._severity_label", return_value=labels.SEVERITY_MINOR),
+    ):
+        triager.triage_run(24, dry_run=False)
+
+    applied = fake_repo.create_issue.call_args.kwargs["labels"]
+    assert labels.AGENT_BUILD not in applied
+    assert labels.SEVERITY_MINOR in applied

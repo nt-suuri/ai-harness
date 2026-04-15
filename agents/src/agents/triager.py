@@ -161,7 +161,10 @@ def triage_run(since_hours: int, *, dry_run: bool) -> int:
 
         score = _score_severity(s_issue)
         sev_label = _severity_label(score)
-        gh_issue = repo.create_issue(title=title, body=body, labels=[labels.BUG, labels.AUTOTRIAGE, sev_label])
+        issue_labels = [labels.BUG, labels.AUTOTRIAGE, sev_label]
+        if sev_label in (labels.SEVERITY_CRITICAL, labels.SEVERITY_IMPORTANT):
+            issue_labels.append(labels.AGENT_BUILD)
+        gh_issue = repo.create_issue(title=title, body=body, labels=issue_labels)
         print(f"Created issue #{gh_issue.number}: {title}", flush=True)
         new_count += 1
 
