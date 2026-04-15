@@ -32,7 +32,7 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_MODELS_TOKEN: ${{ secrets.COPILOT_PAT }}
-      GITHUB_MODELS_DEFAULT_MODEL: ${{ vars.COPILOT_MODEL_REVIEWER || 'openai/gpt-4o' }}
+      GITHUB_MODELS_DEFAULT_MODEL: ${{ vars.COPILOT_MODEL_REVIEWER || 'openai/gpt-4o-mini' }}
       GH_REPO: ${{ github.repository }}
       HARNESS_BACKEND: ${{ vars.HARNESS_BACKEND }}
     steps:
