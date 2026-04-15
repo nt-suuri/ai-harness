@@ -106,8 +106,8 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
     def _safe_validate() -> list[str]:
         try:
             return planner_validate.validate(REPO_ROOT, _changed_files(REPO_ROOT))
-        except Exception as exc:
-            return [f"validation crashed: {exc}"]
+        except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+            return [f"validation crashed: {type(exc).__name__}: {exc}"]
 
     validation_errors = _safe_validate()
     if validation_errors:
