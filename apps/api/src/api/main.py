@@ -1,3 +1,4 @@
+# smoke test for reviewer via GH Models
 from pathlib import Path
 
 from fastapi import FastAPI, Request
