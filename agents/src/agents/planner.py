@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from agents.lib import gh, kill_switch, planner_validate, prompts
+from agents.lib import gh, kill_switch, planner_validate, prompts, skills
 from agents.lib.anthropic import run_agent
 
 _MAX_TURNS = 80
@@ -119,9 +119,10 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
             + error_blob
             + "\n\nFix these errors. Do not change the overall approach — just address the specific issues above."
         )
+        retry_system = system + "\n\n---\n\n" + skills.load("systematic-debugging")
         retry = await run_agent(
             prompt=retry_prompt,
-            system=system,
+            system=retry_system,
             max_turns=_MAX_TURNS,
             allowed_tools=_ALLOWED_TOOLS,
         )
