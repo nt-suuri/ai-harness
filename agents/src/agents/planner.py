@@ -88,12 +88,7 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
     branch = _branch_name(issue_number, issue.title)
     _run_git("checkout", "-b", branch)
     _run_git("add", "-A")
-    _run_git(
-        "-c", "user.name=ai-harness-bot",
-        "-c", "user.email=ai-harness@local",
-        "commit",
-        "-m", f"feat: {issue.title}\n\nCloses #{issue_number}",
-    )
+    _run_git("commit", "-m", f"feat: {issue.title}\n\nCloses #{issue_number}")
     _run_git("push", "-u", "origin", branch)
 
     pr = repo.create_pull(

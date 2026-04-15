@@ -33,6 +33,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+      - name: Configure git push auth
+        run: |
+          git config --global user.name "ai-harness-bot"
+          git config --global user.email "ai-harness@local"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
