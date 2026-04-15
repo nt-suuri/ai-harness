@@ -187,3 +187,53 @@ async def test_duplicate_title_not_appended(tmp_path: Path) -> None:
     updated = product_state.load(state_path)
     assert len(updated.backlog) == 1  # duplicate dropped
     assert updated.backlog[0].id == "B001"
+
+
+@pytest.mark.asyncio
+async def test_llm_suggested_ids_are_reassigned_sequentially(tmp_path: Path) -> None:
+    """LLM-provided IDs are ignored; analyzer auto-assigns from max+1."""
+    state = product_state.State(
+        max_open_agent_issues=2,
+        last_pm_run=None,
+        last_analyzer_run=None,
+        backlog=[product_state.Item(
+            id="B005", title="Existing", priority="normal",
+            rationale="r", added_by="seed",
+        )],
+        in_progress=[],
+        shipped=[],
+        rejected=[],
+    )
+    state_path = tmp_path / "state.yaml"
+    product_state.save(state_path, state)
+    vision_path = tmp_path / "vision.md"
+    vision_path.write_text("V")
+
+    fake_repo = MagicMock()
+    fake_repo.get_commits.return_value = []
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": (
+            "SHIPPED_IDS:\nNEW_BACKLOG:\n"
+            "- id: B001\n  title: New feature alpha\n  rationale: r\n  priority: normal\n  added_by: analyzer\n"
+            "- id: B001\n  title: New feature beta\n  rationale: r\n  priority: normal\n  added_by: analyzer\n"
+        ),
+    }]))
+
+    with (
+        patch("agents.product_analyzer.gh.repo", return_value=fake_repo),
+        patch("agents.product_analyzer.run_agent", fake_llm),
+    ):
+        await product_analyzer.run(state_path, vision_path, dry_run=False)
+
+    updated = product_state.load(state_path)
+    ids = {i.id for i in updated.backlog}
+    assert ids == {"B005", "B006", "B007"}  # collision-free numbering from max+1
+
+
+def test_next_id_num_from_empty_is_one() -> None:
+    assert product_analyzer._next_id_num(set()) == 1
+
+
+def test_next_id_num_skips_non_bprefixed_ids() -> None:
+    assert product_analyzer._next_id_num({"B001", "X007", "B003", "foo"}) == 4

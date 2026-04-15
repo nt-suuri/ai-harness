@@ -49,18 +49,29 @@ async def run(state_path: Path, vision_path: Path, *, dry_run: bool) -> None:
             continue
 
     existing_titles = {i.title for i in state.backlog + state.in_progress + state.shipped}
+    existing_ids = {i.id for i in state.backlog + state.in_progress + state.shipped + state.rejected}
+    next_id_num = _next_id_num(existing_ids)
     for new in new_items:
         if new["title"] in existing_titles:
             continue
+        item_id = f"B{next_id_num:03d}"
+        next_id_num += 1
         state.backlog.append(product_state.Item(
-            id=new["id"], title=new["title"],
+            id=item_id, title=new["title"],
             priority=new.get("priority", "normal"),
             rationale=new.get("rationale", ""),
             added_by="analyzer",
         ))
+        existing_titles.add(new["title"])
 
     state.last_analyzer_run = datetime.now(UTC).isoformat()
     product_state.save(state_path, state)
+
+
+def _next_id_num(existing_ids: set[str]) -> int:
+    """Highest B### + 1. Ignores IDs not matching the B### pattern."""
+    nums = [int(i[1:]) for i in existing_ids if re.fullmatch(r"B\d+", i)]
+    return (max(nums) + 1) if nums else 1
 
 
 def _extract_text(messages: list[object]) -> str:

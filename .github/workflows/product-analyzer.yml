@@ -6,8 +6,13 @@ on:
     types: [completed]
   workflow_dispatch:
 
+concurrency:
+  group: state-yaml-writer
+  cancel-in-progress: false
+
 permissions:
   contents: write
+  issues: read
   models: read
 
 jobs:
