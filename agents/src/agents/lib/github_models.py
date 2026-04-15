@@ -1,12 +1,34 @@
 """OpenAI-compatible adapter for GitHub Models (free tier), with tool-use loop."""
 
+import asyncio
 import os
+import random
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from agents.lib import tool_executors
+
+
+async def _post_with_retry(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+    body: dict[str, object],
+    *,
+    max_attempts: int = 6,
+) -> httpx.Response:
+    """POST with exponential backoff on 429. GH Models free tier rate-limits aggressively."""
+    for attempt in range(max_attempts):
+        resp = await client.post(url, headers=headers, json=body)
+        if resp.status_code != 429 or attempt == max_attempts - 1:
+            return resp
+        retry_after = resp.headers.get("retry-after")
+        delay = float(retry_after) if retry_after else min(60.0, 2.0 ** attempt)
+        delay += random.uniform(0, 1.0)
+        await asyncio.sleep(delay)
+    return resp  # unreachable but mypy-friendly
 
 _BASE_URL = "https://models.github.ai/inference"
 _DEFAULT_MODEL = os.environ.get("GITHUB_MODELS_DEFAULT_MODEL", "openai/gpt-4o-mini")
@@ -128,7 +150,7 @@ async def run_agent(
             if tools:
                 body["tools"] = tools
                 body["tool_choice"] = "auto"
-            resp = await client.post(f"{_BASE_URL}/chat/completions", headers=headers, json=body)
+            resp = await _post_with_retry(client, f"{_BASE_URL}/chat/completions", headers, body)
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
