@@ -100,3 +100,90 @@ async def test_dry_run_does_not_mutate_state(tmp_path: Path) -> None:
         await product_analyzer.run(state_path, vision_path, dry_run=True)
 
     assert state_path.read_text() == original
+
+
+@pytest.mark.asyncio
+async def test_malformed_new_backlog_is_skipped_not_crashed(tmp_path: Path) -> None:
+    state_path = _state_with_in_progress(tmp_path)
+    vision_path = tmp_path / "vision.md"
+    vision_path.write_text("Vision")
+
+    fake_repo = MagicMock()
+    fake_repo.get_commits.return_value = []
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": "SHIPPED_IDS:\nNEW_BACKLOG: just a sentence, not a list",
+    }]))
+
+    with (
+        patch("agents.product_analyzer.gh.repo", return_value=fake_repo),
+        patch("agents.product_analyzer.run_agent", fake_llm),
+    ):
+        await product_analyzer.run(state_path, vision_path, dry_run=False)
+
+    updated = product_state.load(state_path)
+    assert updated.backlog == []  # malformed entry dropped, no corruption
+
+
+@pytest.mark.asyncio
+async def test_absent_shipped_ids_line_is_no_op(tmp_path: Path) -> None:
+    state_path = _state_with_in_progress(tmp_path)
+    vision_path = tmp_path / "vision.md"
+    vision_path.write_text("Vision")
+
+    fake_repo = MagicMock()
+    fake_repo.get_commits.return_value = []
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": "NEW_BACKLOG: []",
+    }]))
+
+    with (
+        patch("agents.product_analyzer.gh.repo", return_value=fake_repo),
+        patch("agents.product_analyzer.run_agent", fake_llm),
+    ):
+        await product_analyzer.run(state_path, vision_path, dry_run=False)
+
+    updated = product_state.load(state_path)
+    assert len(updated.in_progress) == 1  # nothing shipped
+    assert updated.backlog == []
+
+
+@pytest.mark.asyncio
+async def test_duplicate_title_not_appended(tmp_path: Path) -> None:
+    state = product_state.State(
+        max_open_agent_issues=2,
+        last_pm_run=None,
+        last_analyzer_run=None,
+        backlog=[product_state.Item(
+            id="B001", title="Already here", priority="normal",
+            rationale="r", added_by="seed",
+        )],
+        in_progress=[],
+        shipped=[],
+        rejected=[],
+    )
+    state_path = tmp_path / "state.yaml"
+    product_state.save(state_path, state)
+    vision_path = tmp_path / "vision.md"
+    vision_path.write_text("V")
+
+    fake_repo = MagicMock()
+    fake_repo.get_commits.return_value = []
+    fake_llm = AsyncMock(return_value=MagicMock(messages=[{
+        "type": "text",
+        "text": (
+            "SHIPPED_IDS:\nNEW_BACKLOG:\n"
+            "- id: B002\n  title: Already here\n  rationale: dup\n  priority: normal\n  added_by: analyzer\n"
+        ),
+    }]))
+
+    with (
+        patch("agents.product_analyzer.gh.repo", return_value=fake_repo),
+        patch("agents.product_analyzer.run_agent", fake_llm),
+    ):
+        await product_analyzer.run(state_path, vision_path, dry_run=False)
+
+    updated = product_state.load(state_path)
+    assert len(updated.backlog) == 1  # duplicate dropped
+    assert updated.backlog[0].id == "B001"

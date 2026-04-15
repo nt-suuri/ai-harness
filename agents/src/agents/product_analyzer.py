@@ -45,6 +45,7 @@ async def run(state_path: Path, vision_path: Path, *, dry_run: bool) -> None:
         try:
             state.ship(item_id)
         except KeyError:
+            # LLM may reference an ID already shipped or never in-progress; tolerate silently
             continue
 
     existing_titles = {i.title for i in state.backlog + state.in_progress + state.shipped}
@@ -91,9 +92,16 @@ def _parse_new_backlog(text: str) -> list[dict[str, str]]:
         return []
     try:
         parsed = yaml.safe_load(raw) or []
-    except yaml.YAMLError:
+    except yaml.YAMLError as exc:
+        print(f"analyzer: skipping malformed NEW_BACKLOG YAML: {exc}", file=sys.stderr)
         return []
-    return [dict(entry) for entry in parsed if isinstance(entry, dict)]
+    if not isinstance(parsed, list):
+        print(f"analyzer: NEW_BACKLOG was not a list ({type(parsed).__name__}); ignoring", file=sys.stderr)
+        return []
+    valid = [dict(entry) for entry in parsed if isinstance(entry, dict)]
+    if len(valid) != len(parsed):
+        print(f"analyzer: dropped {len(parsed) - len(valid)} non-dict NEW_BACKLOG entries", file=sys.stderr)
+    return valid
 
 
 def main(argv: list[str] | None = None) -> int:
