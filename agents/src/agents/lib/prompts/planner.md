@@ -73,13 +73,33 @@ from api import main                # correct is `from api.main import app`
 
 ### Wiring a new route into main.py
 
-If you add `apps/api/src/api/hello.py`, you MUST also `Edit` `apps/api/src/api/main.py` to register the router. The pattern is:
+If you add `apps/api/src/api/hello.py`, you MUST also `Edit` `apps/api/src/api/main.py` to register the router. You MUST make TWO separate `Edit` calls:
+
+**Edit 1 — add the import in the top import block** (right after the other `from api.*` imports, alphabetically sorted):
 
 ```python
-from api.hello import router as hello_router  # add this import at the top
+# old_string (matches an existing adjacent import):
+from api.agents import router as agents_router
 
-app.include_router(hello_router)  # add this line in the include-router block
+# new_string (insert the new import before or after, keeping alphabetical order):
+from api.agents import router as agents_router
+from api.hello import router as hello_router
 ```
+
+**Edit 2 — add the `include_router` call in the existing include-router block** (grouped with the others, NOT appended somewhere else):
+
+```python
+# old_string:
+app.include_router(flags_router)
+
+# new_string:
+app.include_router(flags_router)
+app.include_router(hello_router)
+```
+
+**DO NOT** put `from api.hello import ...` anywhere below `init_sentry()` or any `app.add_middleware(...)` / `app.include_router(...)` lines. Python + ruff E402 both REQUIRE all imports at the top of the file.
+
+**DO NOT** use `Write` on `main.py` — always `Edit`, so you never overwrite the existing structure.
 
 Never edit `apps/api/src/api/__init__.py` — it is intentionally empty.
 
