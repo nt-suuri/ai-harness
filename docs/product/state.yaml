@@ -1,8 +1,9 @@
-max_open_agent_issues: 2
-last_pm_run: '2026-04-15T11:38:57.331454+00:00'
+max_open_agent_issues: 3
+last_pm_run: '2026-04-15T19:37:22+00:00'
 last_analyzer_run: null
 backlog: []
-in_progress:
+in_progress: []
+shipped:
 - id: B001
   title: Smoke test /api/hello round-trip in CI
   priority: normal
@@ -15,5 +16,4 @@ in_progress:
   rationale: Dashboard shows CI counts but no runtime perf signal.
   added_by: seed
   issue_number: 19
-shipped: []
 rejected: []

@@ -34,10 +34,9 @@ def _next_tag(now: datetime | None = None) -> str:
 
 
 def _latest_tag(repo: Any) -> str | None:
-    tags = list(repo.get_tags()[:1])
-    if not tags:
-        return None
-    return str(tags[0].name)
+    for tag in repo.get_tags():
+        return str(tag.name)
+    return None
 
 
 def _run_git(*args: str) -> str:
