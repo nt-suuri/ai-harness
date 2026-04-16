@@ -12,7 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@sentry/react": "^8.38.0",
+    "@sentry/react": "^10.48.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
