@@ -1,14 +1,7 @@
 max_open_agent_issues: 3
-last_pm_run: '2026-04-16T02:21:55.386325+00:00'
+last_pm_run: '2026-04-16T17:39:05.101614+00:00'
 last_analyzer_run: '2026-04-16T02:11:10.948068+00:00'
 backlog:
-- id: B005
-  title: Add uptime tracking to dashboard observability
-  priority: normal
-  rationale: Adding uptime to the dashboard observability supports the vision's quarter
-    focus on increasing observability features.
-  added_by: analyzer
-  issue_number: null
 - id: B006
   title: Add request count metric to dashboard observability
   priority: normal
@@ -45,6 +38,13 @@ in_progress:
     focus to add basic observability features.
   added_by: analyzer
   issue_number: 25
+- id: B005
+  title: Add uptime tracking to dashboard observability
+  priority: normal
+  rationale: Adding uptime to the dashboard observability supports the vision's quarter
+    focus on increasing observability features.
+  added_by: analyzer
+  issue_number: 26
 shipped:
 - id: B001
   title: Smoke test /api/hello round-trip in CI
