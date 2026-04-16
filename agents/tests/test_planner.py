@@ -259,7 +259,7 @@ async def test_planner_skips_validation_in_dry_run() -> None:
 
 @pytest.mark.asyncio
 async def test_planner_queues_auto_merge_after_successful_pr() -> None:
-    """After create_pull succeeds, `gh pr merge <n> --auto --squash` is invoked."""
+    """After create_pull succeeds, merge_gate.decide is called and returns merged."""
     fake_repo = MagicMock()
     fake_issue = MagicMock(title="T", body="b")
     fake_issue.number = 1
@@ -270,6 +270,7 @@ async def test_planner_queues_auto_merge_after_successful_pr() -> None:
     fake_repo.owner.login = "nt-suuri"
 
     fake_run_agent = AsyncMock(return_value=MagicMock(messages=[{"type": "text", "text": "done"}]))
+    fake_merge_decide = AsyncMock(return_value=("merged", ""))
 
     with (
         patch("agents.planner.gh.repo", return_value=fake_repo),
@@ -279,21 +280,12 @@ async def test_planner_queues_auto_merge_after_successful_pr() -> None:
         patch("agents.planner._has_changes", return_value=True),
         patch("agents.planner._run_git"),
         patch("agents.planner._changed_files", return_value=["apps/api/src/api/x.py"]),
-        patch("agents.planner.subprocess.run") as subprocess_run,
+        patch("agents.merge_gate.decide", fake_merge_decide),
     ):
         rc = await plan_and_open_pr(1, dry_run=False)
 
     assert rc == 0
-    merge_calls = [
-        c for c in subprocess_run.call_args_list
-        if len(c.args) > 0 and c.args[0][:3] == ["gh", "pr", "merge"]
-    ]
-    assert len(merge_calls) == 1, f"expected exactly one gh pr merge invocation, got {merge_calls}"
-    cmd = merge_calls[0].args[0]
-    assert "123" in cmd
-    assert "--auto" in cmd
-    assert "--squash" in cmd
-    assert "--delete-branch" in cmd
+    fake_merge_decide.assert_called_once_with(123, repo=fake_repo)
 
 
 @pytest.mark.asyncio

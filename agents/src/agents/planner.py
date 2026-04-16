@@ -165,10 +165,27 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
         print(f"Opened PR #{pr.number}: {pr.html_url}")
 
     if os.environ.get("AUTO_MERGE", "true").lower() == "true":
-        subprocess.run(
-            ["gh", "pr", "merge", str(pr.number), "--auto", "--squash", "--delete-branch"],
-            cwd=REPO_ROOT, check=False,
-        )
+        from agents.merge_gate import decide as merge_decide
+
+        gate_decision, gate_feedback = await merge_decide(pr.number, repo=repo)
+        print(f"merge-gate: {gate_decision}")
+        if gate_decision == "rejected" and gate_feedback:
+            retry_prompt = (
+                f"The merge gate rejected your PR. Reviewer feedback:\n\n{gate_feedback[:4096]}"
+                "\n\nFix these issues, then stop."
+            )
+            await run_agent(
+                prompt=retry_prompt, system=system,
+                max_turns=_MAX_TURNS, allowed_tools=_ALLOWED_TOOLS,
+            )
+            planner_validate.ruff_fix(REPO_ROOT, _changed_files(REPO_ROOT))
+            errors = planner_validate.validate(REPO_ROOT, _changed_files(REPO_ROOT))
+            if not errors:
+                _run_git("add", "-A")
+                _run_git("commit", "--amend", "--no-edit")
+                _run_git("push", "--force-with-lease", "-u", "origin", branch)
+                gate_decision, _ = await merge_decide(pr.number, repo=repo)
+                print(f"merge-gate (retry): {gate_decision}")
     return 0
 
 
