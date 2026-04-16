@@ -25,6 +25,12 @@ async def decide(pr_number: int, *, repo: Any) -> tuple[str, str]:
     if not comments:
         return ("waiting", "")
 
+    # Check if this PR should merge next (priority ranking)
+    from agents.pr_priority import rank as pr_rank
+    next_pr = await pr_rank(repo)
+    if next_pr is not None and next_pr != pr_number:
+        return ("held", f"PR #{next_pr} has higher priority")
+
     statuses = {
         s.context: s.state
         for s in repo.get_commit(pr.head.sha).get_statuses()
