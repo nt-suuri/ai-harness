@@ -1,7 +1,28 @@
 max_open_agent_issues: 3
 last_pm_run: '2026-04-16T01:57:28.454779+00:00'
-last_analyzer_run: '2026-04-16T01:55:57.211364+00:00'
-backlog: []
+last_analyzer_run: '2026-04-16T02:06:07.897462+00:00'
+backlog:
+- id: B004
+  title: Add latency metric to dashboard observability
+  priority: normal
+  rationale: Observability improvements in dashboard latency align with the quarter
+    focus to add basic observability features.
+  added_by: analyzer
+  issue_number: null
+- id: B005
+  title: Add uptime tracking to dashboard observability
+  priority: normal
+  rationale: Adding uptime to the dashboard observability supports the vision's quarter
+    focus on increasing observability features.
+  added_by: analyzer
+  issue_number: null
+- id: B006
+  title: Add request count metric to dashboard observability
+  priority: normal
+  rationale: Including request count metrics addresses the current quarter focus on
+    dashboard observability enhancements.
+  added_by: analyzer
+  issue_number: null
 in_progress: []
 shipped:
 - id: B001
@@ -20,6 +41,7 @@ rejected:
 - id: B003
   title: Add request count metric to /api/status
   priority: normal
-  rationale: 413 Payload Too Large — task required cross-file edits on existing code, too complex for current planner
+  rationale: "413 Payload Too Large \u2014 task required cross-file edits on existing\
+    \ code, too complex for current planner"
   added_by: pm-agent
   issue_number: 24
