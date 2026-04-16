@@ -1,6 +1,19 @@
 # Releases
 
 ```markdown
+## v2026.04.16-0205 — 2026-04-16
+
+### Highlights
+- PM dispatches planner directly with enhanced workflow.
+- History pruning implemented to prevent 413 errors.
+
+### Internal
+- Updated state.yaml files for various components.
+- Moved B003 to rejected state after planner failure.
+- Seeded real vision for PM agent.
+```
+
+```markdown
 ## v2026.04.16-0155 — 2026-04-16
 
 ### Highlights
