@@ -33,6 +33,7 @@ async def _post_with_retry(
 _BASE_URL = "https://models.github.ai/inference"
 _DEFAULT_MODEL = os.environ.get("GITHUB_MODELS_DEFAULT_MODEL", "openai/gpt-4o-mini")
 _MAX_TOOL_RESULT_CHARS = 8_000  # GH Models 413s if messages grow too large
+_MAX_HISTORY_CHARS = 80_000  # prune oldest tool exchanges when history exceeds this
 
 _TOOL_SCHEMAS = {
     "Read": {
@@ -120,6 +121,21 @@ def _token() -> str:
     return os.environ.get("GITHUB_MODELS_TOKEN") or os.environ["GITHUB_TOKEN"]
 
 
+def _prune_history(messages: list[dict[str, Any]]) -> None:
+    """Drop oldest assistant+tool exchanges when history exceeds _MAX_HISTORY_CHARS.
+
+    Keeps system + first user message (index 0-1) and trims from index 2 onward.
+    Removes in pairs: each assistant message with tool_calls + subsequent tool responses.
+    """
+    total = sum(len(str(m.get("content") or "")) for m in messages)
+    while total > _MAX_HISTORY_CHARS and len(messages) > 4:
+        removed = messages.pop(2)
+        total -= len(str(removed.get("content") or ""))
+        while len(messages) > 2 and messages[2].get("role") == "tool":
+            removed = messages.pop(2)
+            total -= len(str(removed.get("content") or ""))
+
+
 async def run_agent(
     prompt: str,
     *,
@@ -146,6 +162,7 @@ async def run_agent(
 
     async with httpx.AsyncClient(timeout=180) as client:
         for turn in range(max_turns):
+            _prune_history(messages)
             body: dict[str, object] = {"model": model, "messages": messages, "max_tokens": 4096}
             if tools:
                 body["tools"] = tools

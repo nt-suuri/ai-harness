@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import re
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -74,6 +75,11 @@ async def run(state_path: Path, vision_path: Path, *, dry_run: bool) -> str:
             state.start(new_id, issue_number=issue.number)
         state.last_pm_run = datetime.now(UTC).isoformat()
         product_state.save(state_path, state)
+
+        subprocess.run(
+            ["gh", "workflow", "run", "planner.yml", "-f", f"issue_number={issue.number}"],
+            check=False,
+        )
 
     return "picked" if decision["kind"] == "PICK" else "generated"
 
