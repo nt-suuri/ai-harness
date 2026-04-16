@@ -1,23 +1,24 @@
 # Product Vision
 
-> **Fill this in once, rarely update.** The Product Manager agent reads this file on every run. If it is empty, the agent exits with a "vision not set" note and does nothing.
-
 ## What are we building?
 
-_One paragraph. What does a user do with this product? What problem does it solve?_
+A self-operating software development harness. One human sets the vision; AI agents plan features, write code, review PRs, deploy to production, monitor for errors, and fix bugs — all autonomously. The dashboard at the root URL shows real-time CI/deploy stats and agent activity. The API exposes utility endpoints that the agents themselves build and maintain as demo features, proving the loop works end-to-end.
 
 ## Who is the user?
 
-_Two or three sentences. Who matters? What do they care about?_
+A solo developer who wants to see what a fully-automated AI engineering workflow looks like in practice. They interact primarily through the GitHub issue tracker (filing high-level requests) and the Railway-hosted dashboard (observing activity). They never write application code directly.
 
 ## Out of scope (negative constraints)
-
-_List features the agent must NOT propose. Prevents drift._
 
 - Do not propose features outside the monorepo at `apps/api`, `apps/web`, or `agents/`.
 - Do not propose anything requiring paid third-party services beyond Railway + GitHub.
 - Do not propose features that require the user's manual data entry.
+- Do not propose changes to the agent infrastructure itself (planner, reviewer, PM, analyzer, deployer, triager) — those are maintained by the human operator.
+- Do not propose frontend frameworks or complex UI — the dashboard is intentionally minimal.
+- Keep every feature small enough to ship in a single PR (1–3 files, under 50 lines).
 
 ## Current quarter focus
 
-_One to three themes. Constrains what the PM picks from the backlog when multiple options tie._
+1. Build out the API with small, demonstrable utility endpoints that showcase the harness working.
+2. Add basic observability features to the dashboard (latency, uptime, request counts).
+3. Improve test coverage for existing API routes.
