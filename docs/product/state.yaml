@@ -1,6 +1,6 @@
 max_open_agent_issues: 3
 last_pm_run: '2026-04-16T01:57:28.454779+00:00'
-last_analyzer_run: '2026-04-16T02:06:07.897462+00:00'
+last_analyzer_run: '2026-04-16T02:11:10.948068+00:00'
 backlog:
 - id: B004
   title: Add latency metric to dashboard observability
@@ -21,6 +21,27 @@ backlog:
   priority: normal
   rationale: Including request count metrics addresses the current quarter focus on
     dashboard observability enhancements.
+  added_by: analyzer
+  issue_number: null
+- id: B007
+  title: Add error rate metric to dashboard observability
+  priority: normal
+  rationale: Complements existing metrics by tracking error rates, enhancing dashboard
+    observability per the current quarter focus.
+  added_by: analyzer
+  issue_number: null
+- id: B008
+  title: Add basic test coverage for new API endpoints
+  priority: normal
+  rationale: Ensures reliability and maintainability of newly added utility endpoints,
+    aligned with the focus on improving test coverage.
+  added_by: analyzer
+  issue_number: null
+- id: B009
+  title: Add API endpoint for current agent status
+  priority: normal
+  rationale: "Expands the API utility endpoints to provide real-time status of autonomous\
+    \ agents, demonstrating the loop\u2019s end-to-end function."
   added_by: analyzer
   issue_number: null
 in_progress: []
