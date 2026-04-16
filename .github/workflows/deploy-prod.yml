@@ -16,6 +16,7 @@ concurrency:
 
 permissions:
   contents: read
+  models: read
 
 jobs:
   deploy:
@@ -32,6 +33,20 @@ jobs:
             exit 0
           fi
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync --group dev --all-packages --frozen
+      - name: Assess deployment risk
+        env:
+          HARNESS_BACKEND: ${{ vars.HARNESS_BACKEND }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_TOKEN: ${{ secrets.COPILOT_PAT }}
+          GITHUB_MODELS_DEFAULT_MODEL: ${{ vars.COPILOT_MODEL_DEPLOYER || 'openai/gpt-4.1-mini' }}
+          GH_REPO: ${{ github.repository }}
+        run: uv run python -m agents.deploy_gate --sha ${{ github.sha }}
       - name: Install Railway CLI
         run: npm i -g @railway/cli@latest
       - name: Deploy to prod
