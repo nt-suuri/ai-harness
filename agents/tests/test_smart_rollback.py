@@ -1,7 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from agents.smart_rollback import analyze, _parse_response, _format_events
+import pytest
+
+from agents.smart_rollback import _format_events, _parse_response, analyze
 
 
 def _fake_result(text: str) -> MagicMock:

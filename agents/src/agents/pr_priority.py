@@ -15,7 +15,7 @@ async def rank(repo: Any) -> int | None:
 
     pr_descriptions: list[str] = []
     for pr in open_prs:
-        labels = [l.name for l in pr.labels]
+        labels = [lbl.name for lbl in pr.labels]
         files = pr.changed_files
         age = pr.created_at.isoformat() if pr.created_at else "unknown"
         pr_descriptions.append(

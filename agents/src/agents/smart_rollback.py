@@ -1,6 +1,5 @@
 """LLM-based rollback decision: revert / alert / ignore."""
 
-import json
 import re
 from typing import Any
 

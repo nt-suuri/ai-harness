@@ -9,7 +9,7 @@ def _mock_pr(number: int, title: str, labels: list[str], author: str, files: int
     pr = MagicMock()
     pr.number = number
     pr.title = title
-    pr.labels = [MagicMock(name=l) for l in labels]
+    pr.labels = [MagicMock(name=lbl) for lbl in labels]
     pr.user.login = author
     pr.changed_files = files
     pr.created_at = MagicMock(isoformat=MagicMock(return_value="2026-04-16T00:00:00"))

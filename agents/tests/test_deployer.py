@@ -1,6 +1,6 @@
 import os
 import subprocess
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -137,6 +137,7 @@ def test_auto_revert_calls_git_revert_and_push() -> None:
 
 def test_auto_revert_returns_none_on_failure() -> None:
     import subprocess as sp
+
     from agents.deployer import _auto_revert
 
     err = sp.CalledProcessError(1, ["git"], stderr="conflict")
