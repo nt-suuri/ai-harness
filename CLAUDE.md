@@ -65,22 +65,44 @@ Three improvements cut planner PR bugs:
 2. **Pre-commit validation in `planner.py`** — after the LLM tool loop, run `ruff check` + `python -m compileall` + `pytest` on the changed files. On failure, feed errors back to the LLM for ONE retry. If the retry still fails, post a comment on the issue explaining the failure and skip the PR (no branch pushed).
 3. **`pull_request_target` trigger on CI + reviewer** — bypasses GitHub's cascade protection so planner-opened PRs run the same CI + 3-pass review gates as human-opened ones. **Security caveat:** `pull_request_target` runs with base-branch secrets (e.g. ANTHROPIC_API_KEY for reviewer). Under this trigger, a malicious PR could theoretically modify `uv.lock`/`pnpm-lock.yaml` to pull a poisoned package whose install script runs with those secrets. Acceptable here because the repo is private and only Dependabot (trusted GitHub-managed) + the owner's own agents open PRs. If external contributors are ever enabled, switch to one of: (a) install deps from base SHA then only read source from PR head, (b) use a dedicated bot PAT on the planner so CI still fires on `pull_request` events, or (c) require manual `workflow_dispatch` for review on external PRs. Do NOT merge external PRs without addressing this first.
 
-## Full loop (P70)
+## Fully agentic pipeline (P80)
 
-After P60 + auto-fix + auto-merge, the chain runs unattended:
+Every decision in the loop is now made by an LLM agent, not a static rule:
 
-1. PM cron fires (06/12/18 UTC) → picks backlog item → opens issue with `agent:build` label
-2. Planner fires on `issues.opened` → writes code → runs `ruff --fix --unsafe-fixes` on touched files → validates (ruff/compile/pytest) → retries once on failure → opens PR → queues `gh pr merge --auto --squash --delete-branch`
-3. CI runs (ruff/mypy/pytest/vitest/playwright/docker) + Reviewer posts 3 commit statuses
-4. All checks green → GitHub auto-merges + deletes the branch
-5. `deploy-prod.yml` fires on push to main → Railway deploys
-6. `rollback-watch` + `release-notes` + `product-analyzer` all cascade on `workflow_run`
-7. Analyzer moves the item to `state.shipped`, opens next PM slot
-8. Next cron tick → loop
+1. **PM agent** (cron 06/12/18 UTC) — LLM picks from backlog or generates a new feature → opens issue → dispatches planner
+2. **Planner agent** — LLM writes code via Read/Write/Edit/Glob/Grep tools → `ruff --fix` auto-fixes → **test triage agent** categorizes any pytest failures (REAL_BUG/FLAKY/ENVIRONMENT/UNRELATED; flaky tests auto-retry, unrelated failures dropped)
+3. **Reviewer agent** (3 passes: quality/security/deps) — LLM reviews the PR diff → posts VERDICT: APPROVED or REJECTED
+4. **Merge gate agent** — LLM reads all 3 reviewer verdicts + CI status → decides MERGE/REJECT/HOLD/WAIT. If rejected, sends feedback to planner for one fix retry
+5. **PR priority agent** — LLM ranks all open PRs by urgency (bugs > security > features > deps) → merge gate only merges the highest-priority PR
+6. **Deploy gate agent** — LLM reads the diff being deployed, scores risk (low/medium/high) → DEPLOY/DEPLOY_AND_WATCH/HOLD. Blocks `railway up` on high-risk changes
+7. **Smart rollback agent** — LLM reads actual Sentry error messages and stack traces → REVERT/ALERT/IGNORE. Replaces the old count-based threshold
+8. **Release-notes agent** — LLM writes structured CHANGELOG from commits
+9. **Product analyzer agent** — LLM moves shipped items in state.yaml + generates new backlog items grounded in vision
+10. Next cron tick → loop
 
-Kill-switch for auto-merge: `AUTO_MERGE=false` env var on `planner.yml`, OR manually `gh pr merge <N> --disable-auto` on any specific PR in flight.
+**10 LLM decision points. Zero static rules.**
 
-Safety net: P60 validation gate runs locally before the PR opens, so broken code never reaches GitHub. If it somehow does, CI catches it (auto-merge waits); if it STILL somehow ships, `rollback-watch` detects post-deploy error spikes and can `git revert` with `AUTO_ROLLBACK=true`.
+### Agent modules
+
+| Agent | File | Model |
+|---|---|---|
+| product-manager | `agents/src/agents/product_manager.py` | gpt-4o |
+| planner | `agents/src/agents/planner.py` | gpt-4.1 |
+| test-triage | `agents/src/agents/test_triage.py` | gpt-4.1-mini |
+| reviewer | `agents/src/agents/reviewer.py` | gpt-4.1-mini |
+| merge-gate | `agents/src/agents/merge_gate.py` | gpt-4.1-mini |
+| pr-priority | `agents/src/agents/pr_priority.py` | gpt-4.1-mini |
+| deploy-gate | `agents/src/agents/deploy_gate.py` | gpt-4.1-mini |
+| smart-rollback | `agents/src/agents/smart_rollback.py` | gpt-4.1-mini |
+| release-notes | `agents/src/agents/release_notes.py` | gpt-4.1-mini |
+| product-analyzer | `agents/src/agents/product_analyzer.py` | gpt-4.1-mini |
+
+### Kill switches
+
+- `PAUSE_AGENTS=true` repo var — halts ALL agent workflows
+- `AUTO_MERGE=false` env var — planner opens PR but skips merge gate
+- `AUTO_ROLLBACK=true` env var — smart rollback agent can git-revert on REVERT decision
+- Deploy gate returns exit 1 on HOLD — blocks `railway up` in the workflow
 
 ## Secrets
 
