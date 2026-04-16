@@ -41,7 +41,7 @@ jobs:
           git config --global user.name "ai-harness-bot"
           git config --global user.email "ai-harness@local"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_REPO}.git"
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv sync --group dev --all-packages --frozen
