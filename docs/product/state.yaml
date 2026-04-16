@@ -1,14 +1,7 @@
 max_open_agent_issues: 3
-last_pm_run: '2026-04-16T01:57:28.454779+00:00'
+last_pm_run: '2026-04-16T02:21:55.386325+00:00'
 last_analyzer_run: '2026-04-16T02:11:10.948068+00:00'
 backlog:
-- id: B004
-  title: Add latency metric to dashboard observability
-  priority: normal
-  rationale: Observability improvements in dashboard latency align with the quarter
-    focus to add basic observability features.
-  added_by: analyzer
-  issue_number: null
 - id: B005
   title: Add uptime tracking to dashboard observability
   priority: normal
@@ -44,7 +37,14 @@ backlog:
     \ agents, demonstrating the loop\u2019s end-to-end function."
   added_by: analyzer
   issue_number: null
-in_progress: []
+in_progress:
+- id: B004
+  title: Add latency metric to dashboard observability
+  priority: normal
+  rationale: Observability improvements in dashboard latency align with the quarter
+    focus to add basic observability features.
+  added_by: analyzer
+  issue_number: 25
 shipped:
 - id: B001
   title: Smoke test /api/hello round-trip in CI
