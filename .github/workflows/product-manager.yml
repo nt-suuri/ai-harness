@@ -46,6 +46,8 @@ jobs:
           enable-cache: true
       - run: uv sync --group dev --all-packages --frozen
       - name: Decide + maybe open issue
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_PAT }}
         run: uv run python -m agents.product_manager
       - name: Commit state.yaml if changed
         run: |
