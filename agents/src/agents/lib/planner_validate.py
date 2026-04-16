@@ -62,3 +62,25 @@ def validate(cwd: Path, changed_files: list[str]) -> list[str]:
         if err:
             errors.append(err)
     return errors
+
+
+async def validate_with_triage(cwd: Path, changed_files: list[str]) -> list[str]:
+    """Like validate(), but categorizes pytest failures via the test triage agent."""
+    from agents.test_triage import categorize
+
+    errors = validate(cwd, changed_files)
+    triaged: list[str] = []
+    for err in errors:
+        if err.startswith("pytest failed:"):
+            category, action = await categorize(err, changed_files)
+            if category == "FLAKY":
+                test_files = [f for f in changed_files if "/tests/" in f and f.endswith(".py")]
+                retry_err = _pytest(cwd, test_files)
+                if retry_err is None:
+                    continue
+            elif category == "UNRELATED":
+                continue
+            triaged.append(f"pytest failed ({category}, action={action}):\n{err.split(':', 1)[1].strip()}")
+        else:
+            triaged.append(err)
+    return triaged

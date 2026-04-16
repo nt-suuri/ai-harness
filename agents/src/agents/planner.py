@@ -104,14 +104,14 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
 
     REPO_ROOT = Path.cwd()
 
-    def _safe_validate() -> list[str]:
+    async def _safe_validate() -> list[str]:
         try:
             planner_validate.ruff_fix(REPO_ROOT, _changed_files(REPO_ROOT))
-            return planner_validate.validate(REPO_ROOT, _changed_files(REPO_ROOT))
+            return await planner_validate.validate_with_triage(REPO_ROOT, _changed_files(REPO_ROOT))
         except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
             return [f"validation crashed: {type(exc).__name__}: {exc}"]
 
-    validation_errors = _safe_validate()
+    validation_errors = await _safe_validate()
     if validation_errors:
         error_blob = "\n\n".join(validation_errors)[:4096]
         retry_prompt = (
@@ -127,7 +127,7 @@ async def plan_and_open_pr(issue_number: int, *, dry_run: bool) -> int:
             allowed_tools=_ALLOWED_TOOLS,
         )
         plan_summary = _extract_text(retry.messages) or plan_summary
-        validation_errors = _safe_validate()
+        validation_errors = await _safe_validate()
 
     if validation_errors:
         issue.create_comment(
