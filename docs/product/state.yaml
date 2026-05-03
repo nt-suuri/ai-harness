@@ -1,14 +1,7 @@
 max_open_agent_issues: 3
-last_pm_run: '2026-04-16T17:39:05.101614+00:00'
+last_pm_run: '2026-05-03T12:54:42.998285+00:00'
 last_analyzer_run: '2026-04-16T02:11:10.948068+00:00'
 backlog:
-- id: B006
-  title: Add request count metric to dashboard observability
-  priority: normal
-  rationale: Including request count metrics addresses the current quarter focus on
-    dashboard observability enhancements.
-  added_by: analyzer
-  issue_number: null
 - id: B007
   title: Add error rate metric to dashboard observability
   priority: normal
@@ -45,6 +38,13 @@ in_progress:
     focus on increasing observability features.
   added_by: analyzer
   issue_number: 26
+- id: B006
+  title: Add request count metric to dashboard observability
+  priority: normal
+  rationale: Including request count metrics addresses the current quarter focus on
+    dashboard observability enhancements.
+  added_by: analyzer
+  issue_number: 34
 shipped:
 - id: B001
   title: Smoke test /api/hello round-trip in CI
